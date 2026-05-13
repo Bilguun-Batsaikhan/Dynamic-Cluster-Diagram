@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Radial Cluster Demo</title>
+    <link rel="stylesheet" href="./style.updated.css" />
+  </head>
+
+  <body>
+    <header class="topbar">
+      <div class="left">
+        <div class="title">Radial Cluster (Hierarchy)</div>
+        <div class="hint">
+          Click a node to expand/collapse • Expand All / Collapse All
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btnExpandAll">Expand All</button>
+        <button id="btnCollapseAll">Collapse All</button>
+        <button id="btnReset">Reset</button>
+        <button id="btnZoomIn">Zoom In</button>
+        <button id="btnZoomOut">Zoom Out</button>
+        <button id="btnViewReset">Reset View</button>
+
+        <div class="control-group">
+          <label class="control-label">
+            Radius
+            <input
+              id="radiusSlider"
+              type="range"
+              min="400"
+              max="1800"
+              step="50"
+              value="1000"
+            />
+          </label>
+          <span id="radiusValue" class="control-value">1000</span>
+        </div>
+
+        <div class="control-group">
+          <span class="control-label">Labels</span>
+          <button type="button" class="chip" data-label-size="10">S</button>
+          <button type="button" class="chip is-active" data-label-size="14">
+            M
+          </button>
+          <button type="button" class="chip" data-label-size="18">L</button>
+          <button type="button" class="chip" data-label-size="22">XL</button>
+          <button type="button" class="chip" data-label-size="30">XXL</button>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">
+            <input id="toggleLeafLinks" type="checkbox" checked />
+            Leaf links
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div id="chart" class="chart"></div>
+    </main>
+
+    <!-- D3 -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <!-- App -->
+    <script type="module" src="app.fixed.arcs.js"></script>
+  </body>
+</html>

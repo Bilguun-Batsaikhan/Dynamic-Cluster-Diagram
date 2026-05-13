@@ -1,0 +1,15 @@
+{
+  "name": "v4",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.fixed.arcs.js",
+  "scripts": {
+    "start": "serve src",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serve": "^14.2.5"
+  }
+}
