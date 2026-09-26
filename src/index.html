@@ -74,6 +74,15 @@
           <button type="button" id="btnSaveTree">Save</button>
           <button type="button" id="btnDeleteTree">Delete</button>
         </div>
+        <div class="button-row button-row-2">
+          <button type="button" id="btnImportTree" title="Load trees from .json files">
+            Import…
+          </button>
+          <button type="button" id="btnExportTree" title="Download this tree as a .json file">
+            Export
+          </button>
+        </div>
+        <input type="file" id="importFile" accept=".json,application/json" multiple hidden />
         <p id="treeStatus" class="panel-note" role="status"></p>
       </section>
 

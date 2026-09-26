@@ -3,7 +3,14 @@ import { data, leafConnections, seed } from "./data.js";
 import { createChart } from "./chart.js";
 import { createSearch } from "./search.js";
 import { createBuilder, canEdit } from "./builder.js";
-import { loadSavedTrees, storeTree, unstoreTree, newTreeId } from "./trees.js";
+import {
+  loadSavedTrees,
+  storeTree,
+  unstoreTree,
+  newTreeId,
+  treeFile,
+  parseTreeFile,
+} from "./trees.js";
 import { applyStyle } from "./styles.js";
 import { createSizeInput } from "./sizeInput.js";
 
@@ -215,7 +222,7 @@ function renderTreeUI(message) {
     ? "The random example can't be edited"
     : editable
       ? "Edit this tree"
-      : "This tree was saved without its editing data";
+      : "This tree has no editing data (e.g. an imported random example)";
   $("btnSaveTree").disabled = !hasUnsavedWork(current);
   $("btnDeleteTree").disabled = current.example;
   $("treeStatus").textContent =
@@ -269,6 +276,47 @@ $("btnDeleteTree").addEventListener("click", () => {
   trees.splice(trees.indexOf(current), 1);
   if (current.saved) unstoreTree(current.id);
   selectTree(exampleTree);
+});
+
+// ---- Import / export .json files ----
+$("btnExportTree").addEventListener("click", () => {
+  const { filename, json } = treeFile(current);
+  const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  renderTreeUI(`Downloaded ${filename}. Use Import to load it again later.`);
+});
+
+$("btnImportTree").addEventListener("click", () => $("importFile").click());
+
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+$("importFile").addEventListener("change", async (event) => {
+  const files = [...event.target.files];
+  event.target.value = ""; // allow re-importing the same file
+  const imported = [];
+  const problems = [];
+  for (const file of files) {
+    if (file.size > MAX_IMPORT_BYTES) {
+      problems.push(`Couldn't import ${file.name}: it's larger than 5 MB.`);
+      continue;
+    }
+    try {
+      for (const tree of parseTreeFile(await file.text())) {
+        imported.push({ ...tree, id: newTreeId(), saved: false, dirty: false });
+      }
+    } catch (err) {
+      problems.push(`Couldn't import ${file.name}: ${err.message}.`);
+    }
+  }
+
+  trees.push(...imported);
+  if (imported.length) selectTree(imported.at(-1));
+  const n = imported.length;
+  const done = n ? `Imported ${n} tree${n === 1 ? "" : "s"}. Press Save to keep ${n === 1 ? "it" : "them"} in this browser.` : "";
+  renderTreeUI([done, ...problems].filter(Boolean).join(" ") || undefined);
 });
 
 // Warn before losing new trees or edits that weren't saved.

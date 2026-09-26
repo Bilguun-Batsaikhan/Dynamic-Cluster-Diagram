@@ -246,6 +246,9 @@ input:focus-visible {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
 }
+.button-row-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
 .level-picker {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 34px;
