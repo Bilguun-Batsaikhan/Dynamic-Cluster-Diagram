@@ -9,9 +9,48 @@
 
   <body>
     <main class="stage">
-      <div class="tree-title">
-        <h1 id="treeName"></h1>
-        <span id="treeBadge" class="badge"></span>
+      <!-- Pinned to the chart's top-left corner; not affected by zoom -->
+      <div class="chart-overlay">
+        <div class="tree-title">
+          <h1 id="treeName"></h1>
+          <span id="treeBadge" class="badge"></span>
+        </div>
+
+        <section class="legend-card">
+          <button
+            type="button"
+            id="legendToggle"
+            class="legend-toggle"
+            aria-expanded="true"
+            aria-controls="legendBody"
+          >
+            Legend <span class="chevron" aria-hidden="true">▾</span>
+          </button>
+          <div id="legendBody" class="legend-body">
+            <ul class="legend">
+              <li>
+                <span class="swatch collapsed"></span>
+                <span>Collapsed <small>double-click to expand</small></span>
+              </li>
+              <li>
+                <span class="swatch expanded"></span>
+                <span>Expanded <small>double-click to collapse</small></span>
+              </li>
+              <li>
+                <span class="swatch leaf"></span>
+                <span>Leaf <small>no children</small></span>
+              </li>
+              <li>
+                <span class="swatch selected"></span>
+                <span>Selected <small>click a node; Esc clears</small></span>
+              </li>
+            </ul>
+            <div id="connectionLegendBox" hidden>
+              <h3 class="subsection-title">Connections</h3>
+              <ul id="connectionLegend" class="legend"></ul>
+            </div>
+          </div>
+        </section>
       </div>
       <div id="chart" class="chart"></div>
     </main>
@@ -103,56 +142,23 @@
 
       <section class="panel-section">
         <h2 class="section-title">Appearance</h2>
-        <label class="field field-inline">
-          <span class="field-label">Label size</span>
-          <select id="labelSize">
-            <option value="10">Small</option>
-            <option value="14" selected>Medium</option>
-            <option value="18">Large</option>
-            <option value="22">X-Large</option>
-            <option value="30">XX-Large</option>
-          </select>
-        </label>
-        <label class="field field-inline">
-          <span class="field-label">Node size</span>
-          <select id="nodeSize">
-            <option value="0.75">Small</option>
-            <option value="1" selected>Medium</option>
-            <option value="1.5">Large</option>
-            <option value="2">X-Large</option>
-            <option value="3">XX-Large</option>
-          </select>
-        </label>
+        <!-- Filled by sizeInput.js: type a value or pick a preset -->
+        <div class="field field-inline">
+          <label class="field-label" for="labelSize">Label size</label>
+          <div id="labelSizeInput"></div>
+        </div>
+        <div class="field field-inline">
+          <label class="field-label" for="nodeSize">Node size</label>
+          <div id="nodeSizeInput"></div>
+        </div>
+        <div class="field field-inline">
+          <label class="field-label" for="arrowSize">Arrow size</label>
+          <div id="arrowSizeInput"></div>
+        </div>
         <label class="field field-check">
           <input id="toggleLeafLinks" type="checkbox" checked />
           Show connections
         </label>
-      </section>
-
-      <section class="panel-section">
-        <h2 class="section-title">Legend</h2>
-        <ul class="legend">
-          <li>
-            <span class="swatch collapsed"></span>
-            <span>Collapsed <small>double-click to expand</small></span>
-          </li>
-          <li>
-            <span class="swatch expanded"></span>
-            <span>Expanded <small>double-click to collapse</small></span>
-          </li>
-          <li>
-            <span class="swatch leaf"></span>
-            <span>Leaf <small>no children</small></span>
-          </li>
-          <li>
-            <span class="swatch selected"></span>
-            <span>Selected <small>click a node; Esc clears</small></span>
-          </li>
-        </ul>
-        <div id="connectionLegendBox" hidden>
-          <h3 class="subsection-title">Connections</h3>
-          <ul id="connectionLegend" class="legend"></ul>
-        </div>
       </section>
     </aside>
 
@@ -202,6 +208,15 @@
               <button type="button" id="bAddConnection" class="b-add-button">
                 + Add connection
               </button>
+            </section>
+
+            <section class="b-section">
+              <h3>5. Style</h3>
+              <div id="bThemes" class="b-themes" role="group" aria-label="Themes"></div>
+              <div class="b-style">
+                <div id="bColors" class="b-colors"></div>
+                <svg id="bPreview" class="b-preview" viewBox="0 0 200 120" role="img" aria-label="Style preview"></svg>
+              </div>
             </section>
           </div>
         </div>

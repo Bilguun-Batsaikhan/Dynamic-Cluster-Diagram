@@ -5,9 +5,11 @@
 //   { name, levels: [group level names], leafLabel,
 //     nodes: [{ uid, name, children: [...] }],        // top-level groups
 //     legends: [{ uid, name, color }],
-//     connections: [{ uid, source, target, legend, arrow }] }  // leaf uids; arrow "none" | "end" | "both"
+//     connections: [{ uid, source, target, legend, arrow }],  // leaf uids; arrow "none" | "end" | "both"
+//     style: { bg, text, link, node, nodeCollapsed, leaf, highlight } }  // see styles.js
 // Nodes at depth levels.length + 1 are the leaves.
 import { assignStableIds } from "./layout.js";
+import { THEMES, STYLE_FIELDS, DEFAULT_STYLE } from "./styles.js";
 
 const PALETTE = ["#58a6ff", "#e5534b", "#57ab5a", "#daaa3f", "#b083f0", "#39c5cf", "#f47067"];
 const MAX_LEVELS = 8;
@@ -23,6 +25,7 @@ function emptyState() {
     nodes: [],
     legends: [{ uid: uid(), name: "Related", color: PALETTE[0] }],
     connections: [],
+    style: { ...DEFAULT_STYLE },
   };
 }
 
@@ -51,6 +54,7 @@ function exampleState() {
       { uid: uid(), name: "Helps", color: "#57ab5a" },
     ],
     connections: [],
+    style: { ...THEMES.Forest },
   };
   const [eats, helps] = state.legends;
   const leaf = (name) => leafEntries(state).find((l) => l.name === name).uid;
@@ -132,6 +136,7 @@ function toTree(state) {
       legend: c.legend || null,
       arrow: c.arrow,
     })),
+    style: { ...state.style },
     draft: structuredClone(state),
   };
 }
@@ -157,6 +162,9 @@ export function createBuilder({ dialog, onCreate }) {
   const legendsBox = $("#bLegends");
   const connectionsBox = $("#bConnections");
   const errorsBox = $("#bErrors");
+  const themesBox = $("#bThemes");
+  const colorsBox = $("#bColors");
+  const preview = $("#bPreview");
 
   let state = emptyState();
 
@@ -174,6 +182,91 @@ export function createBuilder({ dialog, onCreate }) {
     renderStructure();
     renderLegends();
     renderConnections();
+    renderStyle();
+  }
+
+  // ---- 5. Style ----
+  function renderStyle() {
+    const matches = (theme) => STYLE_FIELDS.every(({ key }) => theme[key] === state.style[key]);
+    themesBox.replaceChildren(
+      ...Object.entries(THEMES).map(([name, theme]) => {
+        const chip = el("button", {
+          type: "button",
+          className: "b-theme",
+          title: `${name} theme`,
+          onclick: () => {
+            state.style = { ...theme };
+            renderStyle();
+          },
+        });
+        chip.setAttribute("aria-pressed", matches(theme));
+        const dots = el("span", { className: "b-theme-dots" });
+        for (const key of ["bg", "link", "leaf", "highlight"]) {
+          const dot = el("span");
+          dot.style.background = theme[key];
+          dots.append(dot);
+        }
+        chip.append(dots, name);
+        return chip;
+      }),
+    );
+
+    colorsBox.replaceChildren(
+      ...STYLE_FIELDS.map(({ key, label }) =>
+        el(
+          "label",
+          { className: "b-color" },
+          el("input", {
+            type: "color",
+            value: state.style[key],
+            oninput: (e) => {
+              state.style[key] = e.target.value;
+              renderPreview();
+              themesBox.querySelectorAll(".b-theme").forEach((chip, i) => {
+                chip.setAttribute("aria-pressed", matches(Object.values(THEMES)[i]));
+              });
+            },
+          }),
+          label,
+        ),
+      ),
+    );
+    renderPreview();
+  }
+
+  // A tiny radial tree drawn with the chosen colors.
+  function renderPreview() {
+    const s = state.style;
+    const svg = (tag, attrs) => {
+      const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+      return e;
+    };
+    const root = [28, 60];
+    const groups = [[86, 28], [86, 92]];
+    const leaves = [[146, 14, 0, "Crow"], [146, 42, 0, "Ant"], [146, 80, 1, "Salmon"], [146, 106, 1, "Shark"]];
+    const curve = ([x1, y1], [x2, y2]) => `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`;
+    const link = (a, b) => svg("path", { d: curve(a, b), fill: "none", stroke: s.link, "stroke-width": 1.5 });
+    const dot = ([x, y], r, fill) => svg("circle", { cx: x, cy: y, r, fill });
+    const label = ([x, y]) =>
+      svg("text", { x: x + 8, y: y + 3.5, fill: s.text, "font-size": 10, "font-family": "system-ui, sans-serif" });
+
+    const parts = [
+      svg("rect", { width: 200, height: 120, rx: 8, fill: s.bg }),
+      ...groups.map((g) => link(root, g)),
+      ...leaves.map(([x, y, gi]) => link(groups[gi], [x, y])),
+      svg("path", { d: "M154,14 C196,30 196,90 154,106", fill: "none", stroke: s.highlight, "stroke-width": 1.8 }),
+      dot(root, 5, s.node),
+      dot(groups[0], 5, s.node),
+      dot(groups[1], 6, s.nodeCollapsed),
+      ...leaves.map(([x, y]) => dot([x, y], 4, s.leaf)),
+    ];
+    for (const [x, y, , name] of leaves) {
+      const t = label([x, y]);
+      t.textContent = name;
+      parts.push(t);
+    }
+    preview.replaceChildren(...parts);
   }
 
   // ---- 1. Levels ----

@@ -117,6 +117,7 @@ export function createChart(
     radius = 1000,
     labelSize = 14,
     nodeScale = 1,
+    arrowSize = 10, // px height of direction arrows
     arcHeight = 1.5,
     showLeafLinks = true,
   },
@@ -167,10 +168,11 @@ export function createChart(
 
   // Direction arrows sit at each arc's apex (marker-mid): ends are covered by labels.
   const markerPrefix = `arrow-${Math.random().toString(36).slice(2, 8)}`;
+  // `aspect` = marker width relative to its height (arrowSize px).
   const ARROWS = {
-    forward: { viewBox: "-5 -5 10 10", width: 5, d: "M-5,-5L5,0L-5,5Z" },
-    backward: { viewBox: "-5 -5 10 10", width: 5, d: "M5,-5L-5,0L5,5Z" },
-    both: { viewBox: "-11 -5 22 10", width: 11, d: "M-11,0L-1,-5L-1,5Z M11,0L1,-5L1,5Z" },
+    forward: { viewBox: "-5 -5 10 10", aspect: 1, d: "M-5,-5L5,0L-5,5Z" },
+    backward: { viewBox: "-5 -5 10 10", aspect: 1, d: "M5,-5L-5,0L5,5Z" },
+    both: { viewBox: "-11 -5 22 10", aspect: 2.2, d: "M-11,0L-1,-5L-1,5Z M11,0L1,-5L1,5Z" },
   };
   const markerUrl = (l) => {
     const kind = l.arrowStart && l.arrowEnd ? "both" : l.arrowEnd ? "forward" : l.arrowStart ? "backward" : null;
@@ -194,7 +196,8 @@ export function createChart(
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.5));
   }
 
-  // One marker per legend color and arrow kind.
+  // One marker per legend color and arrow kind. Sized in drawing units (arrowSize px
+  // at 100% zoom) so arrows scale with the chart rather than the stroke width.
   function renderMarkers() {
     const colors = [{ id: "default", color: "var(--hover)" }, ...legendById.values()];
     const markers = colors.flatMap((c) =>
@@ -207,12 +210,13 @@ export function createChart(
         enter
           .append("marker")
           .attr("orient", "auto")
-          .attr("markerHeight", 5)
+          .attr("markerUnits", "userSpaceOnUse")
           .call((m) => m.append("path")),
       )
       .attr("id", (d) => `${markerPrefix}-${d.id}`)
       .attr("viewBox", (d) => d.viewBox)
-      .attr("markerWidth", (d) => d.width)
+      .attr("markerHeight", arrowSize)
+      .attr("markerWidth", (d) => arrowSize * d.aspect)
       .select("path")
       .attr("d", (d) => d.d)
       .style("fill", (d) => d.color);
@@ -599,6 +603,11 @@ export function createChart(
     setNodeScale(scale) {
       nodeScale = scale;
       update(root, 0);
+    },
+
+    setArrowSize(px) {
+      arrowSize = px;
+      renderMarkers();
     },
 
     setArcHeight(h) {

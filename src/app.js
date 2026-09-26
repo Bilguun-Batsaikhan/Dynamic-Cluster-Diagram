@@ -4,6 +4,8 @@ import { createChart } from "./chart.js";
 import { createSearch } from "./search.js";
 import { createBuilder } from "./builder.js";
 import { loadSavedTrees, persistTrees, newTreeId } from "./trees.js";
+import { applyStyle } from "./styles.js";
+import { createSizeInput } from "./sizeInput.js";
 
 if (typeof d3 === "undefined") throw new Error("D3 failed to load.");
 
@@ -11,8 +13,6 @@ const $ = (id) => document.getElementById(id);
 
 const radiusSlider = $("radiusSlider");
 const arcHeightSlider = $("arcHeightSlider");
-const labelSize = $("labelSize");
-const nodeSize = $("nodeSize");
 const toggleLeafLinks = $("toggleLeafLinks");
 const searchInput = $("searchInput");
 const treeSelect = $("treeSelect");
@@ -28,12 +28,23 @@ const exampleTree = {
 const trees = [exampleTree, ...loadSavedTrees()];
 let current = exampleTree;
 
+// Pixel defaults for the Appearance size fields. Node size is the dot diameter of an
+// expanded node (12 px = the chart's 1× node scale).
+const SIZES = {
+  label: { value: 14, presets: [10, 12, 14, 18, 24], min: 6, max: 72 },
+  node: { value: 12, presets: [8, 12, 16, 24, 36], min: 4, max: 96 },
+  arrow: { value: 10, presets: [6, 8, 10, 14, 20], min: 2, max: 80 },
+};
+const NODE_BASE_DIAMETER = 12;
+
+applyStyle(current.style);
 const chart = createChart($("chart"), {
   tree: current,
   radius: +radiusSlider.value,
   arcHeight: +arcHeightSlider.value,
-  labelSize: +labelSize.value,
-  nodeScale: +nodeSize.value,
+  labelSize: SIZES.label.value,
+  nodeScale: SIZES.node.value / NODE_BASE_DIAMETER,
+  arrowSize: SIZES.arrow.value,
   showLeafLinks: toggleLeafLinks.checked,
 });
 
@@ -56,6 +67,7 @@ const builder = createBuilder({
 
 function selectTree(tree) {
   current = tree;
+  applyStyle(tree.style);
   chart.setTree(tree);
   search.reset();
   renderTreeUI();
@@ -160,9 +172,44 @@ bindSlider(arcHeightSlider, $("arcHeightValue"), (v) => `${v.toFixed(1)}×`, (v)
 );
 
 // ---- Appearance ----
-labelSize.addEventListener("change", () => chart.setLabelSize(+labelSize.value));
-nodeSize.addEventListener("change", () => chart.setNodeScale(+nodeSize.value));
+createSizeInput($("labelSizeInput"), {
+  id: "labelSize",
+  label: "Label size",
+  ...SIZES.label,
+  onChange: (px) => chart.setLabelSize(px),
+});
+createSizeInput($("nodeSizeInput"), {
+  id: "nodeSize",
+  label: "Node size",
+  ...SIZES.node,
+  onChange: (px) => chart.setNodeScale(px / NODE_BASE_DIAMETER),
+});
+createSizeInput($("arrowSizeInput"), {
+  id: "arrowSize",
+  label: "Arrow size",
+  ...SIZES.arrow,
+  onChange: (px) => chart.setArrowSize(px),
+});
 toggleLeafLinks.addEventListener("change", () => chart.setShowLeafLinks(toggleLeafLinks.checked));
+
+// ---- Legend (top-left overlay): collapsible, remembered in this browser ----
+const legendToggle = $("legendToggle");
+function setLegendOpen(open) {
+  legendToggle.setAttribute("aria-expanded", open);
+  $("legendBody").hidden = !open;
+}
+try {
+  setLegendOpen(localStorage.getItem("dynamic-cluster-diagram.legend") !== "closed");
+} catch {
+  setLegendOpen(true);
+}
+legendToggle.addEventListener("click", () => {
+  const open = legendToggle.getAttribute("aria-expanded") !== "true";
+  setLegendOpen(open);
+  try {
+    localStorage.setItem("dynamic-cluster-diagram.legend", open ? "open" : "closed");
+  } catch {}
+});
 
 // ---- Keyboard shortcuts: "/" focuses search, Escape clears the highlight ----
 document.addEventListener("keydown", (event) => {
