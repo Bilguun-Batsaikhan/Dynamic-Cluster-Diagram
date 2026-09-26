@@ -58,6 +58,27 @@ export function applyHighlight({ gLinks, gOuterLinks, gNodes }, node, adjacency,
     .attr("r", (d) => dotRadius(d, activeIds.has(d.id), scale));
 }
 
+// Highlight one outer link: the arc itself plus the root paths to both of its ends.
+export function applyLinkHighlight({ gLinks, gOuterLinks, gNodes }, link, scale = 1) {
+  const activeIds = new Set([...link.source.ancestors(), ...link.target.ancestors()].map((d) => d.id));
+
+  gLinks
+    .selectAll("path.link")
+    .attr("class", (l) => (activeIds.has(l.target.id) ? "link path" : "link dim"));
+
+  gOuterLinks
+    .selectAll("path.outer-link")
+    .classed("active", (l) => l.key === link.key)
+    .classed("dim", (l) => l.key !== link.key);
+
+  gNodes
+    .selectAll("g.node")
+    .classed("active", (d) => activeIds.has(d.id))
+    .classed("dim", (d) => !activeIds.has(d.id))
+    .select("circle.node-dot")
+    .attr("r", (d) => dotRadius(d, activeIds.has(d.id), scale));
+}
+
 export function clearHighlight({ gLinks, gOuterLinks, gNodes }, scale = 1) {
   gLinks.selectAll("path.link").attr("class", "link");
 

@@ -46,7 +46,73 @@ const chart = createChart($("chart"), {
   nodeScale: SIZES.node.value / NODE_BASE_DIAMETER,
   arrowSize: SIZES.arrow.value,
   showLeafLinks: toggleLeafLinks.checked,
+  onSelectLink: renderConnectionCard,
 });
+
+// ---- Connection details card: shown when an arc is clicked, anchored to its apex ----
+const ARROW_GLYPHS = { end: "→", both: "↔", none: "—" };
+
+function make(tag, className, text) {
+  return Object.assign(document.createElement(tag), { className: className ?? "", textContent: text ?? "" });
+}
+
+function renderConnectionCard(detail) {
+  const card = $("connectionCard");
+  if (!detail) {
+    card.hidden = true;
+    delete card.dataset.key;
+    return;
+  }
+  if (card.dataset.key !== detail.key) {
+    fillConnectionCard(card, detail);
+    card.dataset.key = detail.key;
+  }
+  card.hidden = false;
+  positionConnectionCard(card, detail.x, detail.y);
+}
+
+function fillConnectionCard(card, { legend, between, merged, members }) {
+  const swatch = make("span", "swatch-line");
+  if (legend) swatch.style.setProperty("--c", legend.color);
+  const close = make("button", "conn-card-close", "×");
+  close.type = "button";
+  close.setAttribute("aria-label", "Close");
+  close.addEventListener("click", () => chart.unpin());
+
+  const parts = [make("div", "conn-card-head")];
+  parts[0].append(swatch, make("strong", "conn-card-title", legend?.name ?? "Connection"), close);
+  if (merged) {
+    const count = `${members.length} connection${members.length === 1 ? "" : "s"}`;
+    parts.push(make("p", "conn-card-sub", `${count} between ${between[0]} and ${between[1]}`));
+  }
+
+  const list = make("ul", "conn-card-list");
+  for (const m of members) {
+    const li = make("li");
+    li.append(
+      make("div", "conn-card-route", `${m.from} ${ARROW_GLYPHS[m.arrow] ?? "—"} ${m.to}`),
+      make("p", m.note ? "conn-card-note" : "conn-card-note empty", m.note || "No explanation added."),
+    );
+    list.append(li);
+  }
+  parts.push(list);
+  card.replaceChildren(...parts);
+}
+
+// Beside the arc's apex, flipped/clamped so it stays inside the chart area.
+function positionConnectionCard(card, x, y) {
+  const chartEl = $("chart");
+  const stage = card.offsetParent;
+  const gap = 14;
+  const ax = chartEl.offsetLeft + x;
+  const ay = chartEl.offsetTop + y;
+  let left = ax + gap;
+  if (left + card.offsetWidth > stage.clientWidth - 8) left = ax - gap - card.offsetWidth;
+  left = Math.max(8, Math.min(left, stage.clientWidth - card.offsetWidth - 8));
+  const top = Math.max(8, Math.min(ay - 20, stage.clientHeight - card.offsetHeight - 8));
+  card.style.left = `${left}px`;
+  card.style.top = `${top}px`;
+}
 
 const search = createSearch({
   input: searchInput,

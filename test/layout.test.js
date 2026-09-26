@@ -116,6 +116,7 @@ test("aggregateLinks keeps legends apart and maps arrow direction onto the merge
 
   const helps = links.find((l) => l.legend === "helps");
   assert.equal(helps.count, 2);
+  assert.equal(helps.members.length, 2);
   assert.deepEqual([helps.arrowStart, helps.arrowEnd], [true, true]);
 });
 

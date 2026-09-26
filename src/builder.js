@@ -5,7 +5,7 @@
 //   { name, levels: [group level names], leafLabel,
 //     nodes: [{ uid, name, children: [...] }],        // top-level groups
 //     legends: [{ uid, name, color }],
-//     connections: [{ uid, source, target, legend, arrow }],  // leaf uids; arrow "none" | "end" | "both"
+//     connections: [{ uid, source, target, legend, arrow, note }],  // leaf uids; arrow "none" | "end" | "both"
 //     style: { bg, text, link, node, nodeCollapsed, leaf, highlight } }  // see styles.js
 // Nodes at depth levels.length + 1 are the leaves.
 import { assignStableIds } from "./layout.js";
@@ -58,26 +58,32 @@ function exampleState() {
   };
   const [eats, helps] = state.legends;
   const leaf = (name) => leafEntries(state).find((l) => l.name === name).uid;
-  const link = (source, legend, target) => ({
+  const link = (source, legend, target, note) => ({
     uid: uid(),
     source: leaf(source),
     target: leaf(target),
     legend: legend.uid,
     arrow: "end",
+    note,
   });
   state.connections = [
-    link("Crow", eats, "Worm"),
-    link("Ant", helps, "Crow"), // crows let ants clean their feathers ("anting")
-    link("Sparrow", eats, "Ant"),
-    link("Eagle", eats, "Rabbit"),
-    link("Fox", eats, "Rabbit"),
-    link("Bee", helps, "Rabbit"), // pollinates the plants rabbits eat
-    link("Shark", eats, "Seal"),
-    link("Seal", eats, "Salmon"),
-    link("Dolphin", eats, "Salmon"),
-    link("Salmon", eats, "Shrimp"),
-    link("Shrimp", helps, "Shark"), // cleaner shrimp
-    link("Crab", eats, "Worm"),
+    link("Crow", eats, "Worm", "Crows probe lawns and fields for earthworms, especially after rain brings them near the surface."),
+    link(
+      "Ant",
+      helps,
+      "Crow",
+      "“Anting”: crows lie on ant nests or rub ants through their feathers. The formic acid the ants release helps get rid of mites, lice and other parasites.",
+    ),
+    link("Sparrow", eats, "Ant", "Sparrows pick ants and other insects off the ground, a protein-rich food for their chicks."),
+    link("Eagle", eats, "Rabbit", "Rabbits are staple prey for many eagles, caught in a fast dive from above."),
+    link("Fox", eats, "Rabbit", "Foxes stalk rabbits around dawn and dusk, when both are most active."),
+    link("Bee", helps, "Rabbit", "Bees pollinate the clover and wildflowers that rabbits graze on."),
+    link("Shark", eats, "Seal", "Great white sharks ambush seals from below near the surface."),
+    link("Seal", eats, "Salmon", "Seals gather at river mouths to catch salmon as they migrate upstream."),
+    link("Dolphin", eats, "Salmon", "Dolphins work together to herd fish like salmon into tight groups before feeding."),
+    link("Salmon", eats, "Shrimp", "Shrimp and krill are rich in astaxanthin, the pigment that turns salmon flesh pink."),
+    link("Shrimp", helps, "Shark", "Cleaner shrimp pick parasites and dead skin off larger fish, including sharks."),
+    link("Crab", eats, "Worm", "Crabs sift through sand and mud for marine worms."),
   ];
   return state;
 }
@@ -135,6 +141,7 @@ function toTree(state) {
       target: idByUid.get(c.target),
       legend: c.legend || null,
       arrow: c.arrow,
+      note: c.note?.trim() || undefined,
     })),
     style: { ...state.style },
     draft: structuredClone(state),
@@ -145,6 +152,14 @@ function el(tag, props = {}, ...children) {
   const e = Object.assign(document.createElement(tag), props);
   e.append(...children);
   return e;
+}
+
+// Grow a textarea to fit its text (CSS `field-sizing: content` does this where supported).
+const fieldSizing = globalThis.CSS?.supports?.("field-sizing", "content");
+function autosize(textarea) {
+  if (fieldSizing || !textarea.isConnected) return;
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight + 2}px`;
 }
 
 function iconButton(label, title, onClick) {
@@ -482,19 +497,35 @@ export function createBuilder({ dialog, onCreate }) {
 
       return el(
         "div",
-        { className: "b-conn" },
-        leafSelect(c.source, "From", (v) => (c.source = v)),
-        arrowSelect,
-        leafSelect(c.target, "To", (v) => (c.target = v)),
-        el("span", { className: "b-legend-pick" }, swatch, legendSelect),
-        iconButton("×", "Remove connection", () => {
-          state.connections = state.connections.filter((x) => x !== c);
-          renderConnections();
+        { className: "b-conn-item" },
+        el(
+          "div",
+          { className: "b-conn" },
+          leafSelect(c.source, "From", (v) => (c.source = v)),
+          arrowSelect,
+          leafSelect(c.target, "To", (v) => (c.target = v)),
+          el("span", { className: "b-legend-pick" }, swatch, legendSelect),
+          iconButton("×", "Remove connection", () => {
+            state.connections = state.connections.filter((x) => x !== c);
+            renderConnections();
+          }),
+        ),
+        el("textarea", {
+          className: "b-conn-note",
+          rows: 1,
+          value: c.note ?? "",
+          placeholder: "Explanation (optional): shown when the connection is clicked",
+          ariaLabel: "Explanation",
+          oninput: (e) => {
+            c.note = e.target.value;
+            autosize(e.target);
+          },
         }),
       );
     });
 
     connectionsBox.replaceChildren(...rows);
+    connectionsBox.querySelectorAll("textarea").forEach(autosize);
     if (!leaves.length) {
       connectionsBox.append(
         el("p", { className: "b-empty", textContent: `Add some ${levelLabel(state.levels.length + 1)} nodes first — connections link leaves.` }),
@@ -513,7 +544,7 @@ export function createBuilder({ dialog, onCreate }) {
       arrow: "none",
     });
     renderConnections();
-    connectionsBox.querySelector(".b-conn:last-child select")?.focus();
+    connectionsBox.querySelector(".b-conn-item:last-child select")?.focus();
   }
 
   // ---- Validate & create ----
@@ -591,6 +622,7 @@ export function createBuilder({ dialog, onCreate }) {
       state = emptyState();
       renderAll();
       dialog.showModal();
+      connectionsBox.querySelectorAll("textarea").forEach(autosize); // now measurable
       nameInput.focus();
     },
   };

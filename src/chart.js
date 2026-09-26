@@ -11,8 +11,9 @@ import {
   assignArcLayers,
   radialLinkPath,
   outerArcPath,
+  arcApex,
 } from "./layout.js";
-import { applyHighlight, clearHighlight, dotRadius } from "./highlight.js";
+import { applyHighlight, applyLinkHighlight, clearHighlight, dotRadius } from "./highlight.js";
 
 const DURATION = 400;
 
@@ -120,6 +121,9 @@ export function createChart(
     arrowSize = 10, // px height of direction arrows
     arcHeight = 1.5,
     showLeafLinks = true,
+    // Called with details of the clicked connection (and its apex position in
+    // container pixels, updated on pan/zoom), or null when it's deselected.
+    onSelectLink = () => {},
   },
 ) {
   let width = 0;
@@ -141,7 +145,10 @@ export function createChart(
   const zoom = d3
     .zoom()
     .scaleExtent([0.2, 4])
-    .on("zoom", (event) => g.attr("transform", event.transform));
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform);
+      if (pinnedLinkKey) emitSelectedLink(); // keep the details card on the arc
+    });
   svg
     .call(zoom)
     .on("dblclick.zoom", null) // double-clicking a node should not zoom
@@ -164,6 +171,8 @@ export function createChart(
   let adjacency = new Map(); // node id -> Set of connected visible nodes
   let connectionCount = new Map(); // node id -> number of leaf connections
   let pinned = null; // highlighted node
+  let pinnedLinkKey = null; // highlighted connection (outer link key); excludes `pinned`
+  let outerLinks = []; // outer links currently drawn
   let fitTimer = 0;
 
   // Direction arrows sit at each arc's apex (marker-mid): ends are covered by labels.
@@ -247,6 +256,7 @@ export function createChart(
     root.x0 = 0;
     root.y0 = 0;
     pinned = null;
+    setLink(null);
   }
 
   // ---- Render ----
@@ -324,13 +334,8 @@ export function createChart(
       maxDepth,
     });
 
-    // Arcs start at the edge of each dot rather than its centre.
-    const arcPath = (l) =>
-      outerArcPath(
-        l,
-        dotRadius(l.source, false, nodeScale) + 1,
-        dotRadius(l.target, false, nodeScale) + 1,
-      );
+    outerLinks = links;
+    const arcPath = (l) => outerArcPath(l, ...arcPads(l));
 
     gOuterLinks
       .selectAll("path.outer-link")
@@ -344,7 +349,7 @@ export function createChart(
             .attr("d", arcPath)
             .on("click", (event, l) => {
               event.stopPropagation();
-              pin(l.source);
+              selectLink(l);
             })
             .call((p) => p.append("title")),
         (update) => update,
@@ -366,8 +371,13 @@ export function createChart(
     const legend = legendById.get(l.legend);
     return (
       `${nodeName(from)} ${arrow} ${nodeName(to)}` +
-      `${legend ? ` · ${legend.name}` : ""} (${plural(l.count, "connection")})`
+      `${legend ? ` · ${legend.name}` : ""} (${plural(l.count, "connection")})\nClick for details`
     );
+  }
+
+  // Arcs start at the edge of each dot rather than its centre.
+  function arcPads(l) {
+    return [dotRadius(l.source, false, nodeScale) + 1, dotRadius(l.target, false, nodeScale) + 1];
   }
 
   function renderNodes(nodes, from, to, t) {
@@ -463,22 +473,42 @@ export function createChart(
   }
 
   // ---- Highlight ----
-  // A hidden pinned node is represented by its visible ancestor.
+  // A selected connection wins; a hidden pinned node is represented by its visible ancestor.
   function refreshHighlight() {
-    const target = pinned && visibleAncestor(pinned);
+    const link = pinnedLinkKey && outerLinks.find((l) => l.key === pinnedLinkKey);
+    if (pinnedLinkKey && !link) setLink(null); // merged away by expand/collapse, or hidden
+
+    const target = !link && pinned && visibleAncestor(pinned);
     gNodes.selectAll("g.node").classed("pinned", (d) => d === target);
 
-    if (target) applyHighlight(layers, target, adjacency, nodeScale);
+    if (link) {
+      applyLinkHighlight(layers, link, nodeScale);
+      emitSelectedLink();
+    } else if (target) applyHighlight(layers, target, adjacency, nodeScale);
     else clearHighlight(layers, nodeScale);
+  }
+
+  function setLink(key) {
+    if (key === pinnedLinkKey) return;
+    pinnedLinkKey = key;
+    if (!key) onSelectLink(null);
+  }
+
+  function selectLink(l) {
+    pinned = null;
+    setLink(l.key);
+    refreshHighlight();
   }
 
   function pin(d) {
     pinned = d;
+    setLink(null);
     refreshHighlight();
   }
 
   function unpin() {
     pinned = null;
+    setLink(null);
     refreshHighlight();
   }
 
@@ -486,7 +516,33 @@ export function createChart(
     if (d.children) collapse(d);
     else expand(d);
     pinned = d;
+    setLink(null);
     update(d);
+  }
+
+  // Report the selected connection: its legend, the connections merged into it
+  // (with their notes) and where its apex is on screen.
+  function emitSelectedLink() {
+    const l = outerLinks.find((x) => x.key === pinnedLinkKey);
+    if (!l) return;
+    const [x, y] = d3.zoomTransform(svg.node()).apply(arcApex(l, ...arcPads(l)));
+    onSelectLink({
+      key: l.key,
+      legend: legendById.get(l.legend) ?? null,
+      between: [nodeName(l.source), nodeName(l.target)],
+      // true when the arc stands in for connections between hidden (collapsed) leaves
+      merged: l.members.some(
+        (c) => ![l.source, l.target].includes(c.source) || ![l.source, l.target].includes(c.target),
+      ),
+      members: l.members.map((c) => ({
+        from: nodeName(c.source),
+        to: nodeName(c.target),
+        arrow: c.arrow ?? "none",
+        note: c.note ?? "",
+      })),
+      x,
+      y,
+    });
   }
 
   // ---- View ----
@@ -629,6 +685,7 @@ export function createChart(
       if (!node) return false;
       node.ancestors().slice(expandNode ? 0 : 1).forEach(expand);
       pinned = node;
+      setLink(null);
       update();
 
       clearTimeout(fitTimer);

@@ -92,7 +92,8 @@ export function resolveConnections(leaves, connections) {
 // Re-route leaf connections to their visible stand-ins and merge duplicates of the same
 // legend, so collapsed branches still show how much flows between them.
 // Connection `arrow` is "none" (default), "end" (source → target) or "both".
-// Returns [{ key, source, target, legend, count, arrowStart, arrowEnd }].
+// Returns [{ key, source, target, legend, count, arrowStart, arrowEnd, members }], where
+// `members` are the original connections merged into the link.
 export function aggregateLinks(connections) {
   const byKey = new Map();
   for (const c of connections) {
@@ -106,10 +107,11 @@ export function aggregateLinks(connections) {
 
     let link = byKey.get(key);
     if (!link) {
-      link = { key, source, target, legend, count: 0, arrowStart: false, arrowEnd: false };
+      link = { key, source, target, legend, count: 0, arrowStart: false, arrowEnd: false, members: [] };
       byKey.set(key, link);
     }
     link.count++;
+    link.members.push(c);
     if (c.arrow === "both") link.arrowStart = link.arrowEnd = true;
     else if (c.arrow === "end") link[flipped ? "arrowStart" : "arrowEnd"] = true;
   }
@@ -171,6 +173,16 @@ export function radialLinkPath(s, t) {
 // `padEnd` px outside the node centres. The curve is split at its midpoint (same
 // shape) so the apex is a path vertex that can carry a `marker-mid` arrow.
 export function outerArcPath(l, padStart = 0, padEnd = 0) {
+  const { p0, p01, p012, m, p123, p23, p3 } = arcPoints(l, padStart, padEnd);
+  return `M${p0} C${p01} ${p012} ${m} C${p123} ${p23} ${p3}`;
+}
+
+// Midpoint of the arc (where the direction arrow sits), in chart coordinates.
+export function arcApex(l, padStart = 0, padEnd = 0) {
+  return arcPoints(l, padStart, padEnd).m;
+}
+
+function arcPoints(l, padStart, padEnd) {
   const { a1, delta, r, spanNorm } = l.arc;
   // Tighter control points for wide arcs so they rise "up" rather than "out".
   const K = 0.25 + 0.1 * spanNorm;
@@ -187,5 +199,5 @@ export function outerArcPath(l, padStart = 0, padEnd = 0) {
   const p012 = mid(p01, p12);
   const p123 = mid(p12, p23);
   const m = mid(p012, p123);
-  return `M${p0} C${p01} ${p012} ${m} C${p123} ${p23} ${p3}`;
+  return { p0, p01, p012, m, p123, p23, p3 };
 }
