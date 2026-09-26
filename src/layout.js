@@ -64,8 +64,9 @@ export function visibleAncestor(node) {
   return rep;
 }
 
-// Map { source, target } connections to leaf nodes. Endpoints may be a full path id
-// or a leaf name; names shared by several leaves are ambiguous and skipped.
+// Map { source, target, ...extra } connections to leaf nodes (extra fields such as
+// `legend` and `arrow` are kept). Endpoints may be a full path id or a leaf name;
+// names shared by several leaves are ambiguous and skipped.
 export function resolveConnections(leaves, connections) {
   const byId = new Map(leaves.map((l) => [l.id, l]));
   const byName = new Map();
@@ -79,7 +80,7 @@ export function resolveConnections(leaves, connections) {
   for (const c of connections) {
     const source = find(c.source);
     const target = find(c.target);
-    if (source && target) resolved.push({ source, target });
+    if (source && target) resolved.push({ ...c, source, target });
     else
       console.warn(
         `Skipping connection ${c.source} → ${c.target}: endpoint not found or ambiguous (use the full path id).`,
@@ -88,20 +89,29 @@ export function resolveConnections(leaves, connections) {
   return resolved;
 }
 
-// Re-route leaf connections to their visible stand-ins and merge duplicates, so
-// collapsed branches still show how much traffic flows between them.
-// Returns [{ key, source, target, count }].
+// Re-route leaf connections to their visible stand-ins and merge duplicates of the same
+// legend, so collapsed branches still show how much flows between them.
+// Connection `arrow` is "none" (default), "end" (source → target) or "both".
+// Returns [{ key, source, target, legend, count, arrowStart, arrowEnd }].
 export function aggregateLinks(connections) {
   const byKey = new Map();
   for (const c of connections) {
     const a = visibleAncestor(c.source);
     const b = visibleAncestor(c.target);
     if (a === b) continue; // both ends hidden inside the same collapsed node
-    const [source, target] = a.id < b.id ? [a, b] : [b, a];
-    const key = `${source.id}→${target.id}`;
-    const existing = byKey.get(key);
-    if (existing) existing.count++;
-    else byKey.set(key, { key, source, target, count: 1 });
+    const flipped = b.id < a.id;
+    const [source, target] = flipped ? [b, a] : [a, b];
+    const legend = c.legend ?? null;
+    const key = `${source.id}→${target.id}|${legend ?? ""}`;
+
+    let link = byKey.get(key);
+    if (!link) {
+      link = { key, source, target, legend, count: 0, arrowStart: false, arrowEnd: false };
+      byKey.set(key, link);
+    }
+    link.count++;
+    if (c.arrow === "both") link.arrowStart = link.arrowEnd = true;
+    else if (c.arrow === "end") link[flipped ? "arrowStart" : "arrowEnd"] = true;
   }
   return [...byKey.values()];
 }
@@ -157,14 +167,25 @@ export function radialLinkPath(s, t) {
   return `M${sx},${sy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`;
 }
 
-// Arc for an outer link after assignArcLayers has run.
-export function outerArcPath(l) {
+// Arc for an outer link after assignArcLayers has run. The ends start `padStart` /
+// `padEnd` px outside the node centres. The curve is split at its midpoint (same
+// shape) so the apex is a path vertex that can carry a `marker-mid` arrow.
+export function outerArcPath(l, padStart = 0, padEnd = 0) {
   const { a1, delta, r, spanNorm } = l.arc;
   // Tighter control points for wide arcs so they rise "up" rather than "out".
   const K = 0.25 + 0.1 * spanNorm;
-  const [sx, sy] = polarToCartesian(a1, l.source.y);
-  const [c1x, c1y] = polarToCartesian(a1 + delta * K, r);
-  const [c2x, c2y] = polarToCartesian(a1 + delta * (1 - K), r);
-  const [tx, ty] = polarToCartesian(a1 + delta, l.target.y);
-  return `M${sx},${sy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`;
+  const p0 = polarToCartesian(a1, l.source.y + padStart);
+  const p1 = polarToCartesian(a1 + delta * K, r);
+  const p2 = polarToCartesian(a1 + delta * (1 - K), r);
+  const p3 = polarToCartesian(a1 + delta, l.target.y + padEnd);
+
+  // de Casteljau split at t = 0.5
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const p01 = mid(p0, p1);
+  const p12 = mid(p1, p2);
+  const p23 = mid(p2, p3);
+  const p012 = mid(p01, p12);
+  const p123 = mid(p12, p23);
+  const m = mid(p012, p123);
+  return `M${p0} C${p01} ${p012} ${m} C${p123} ${p23} ${p3}`;
 }

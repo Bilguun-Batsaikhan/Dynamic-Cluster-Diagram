@@ -98,6 +98,27 @@ test("aggregateLinks merges links between collapsed branches and drops internal 
   assert.deepEqual([merged[0].source.id, merged[0].target.id], ["root/A", "root/B"]);
 });
 
+test("aggregateLinks keeps legends apart and maps arrow direction onto the merged link", () => {
+  const { byId } = sample();
+  const conn = (s, t, extra) => ({ source: byId[s], target: byId[t], ...extra });
+
+  // root/B sorts after root/A, so a B → A arrow lands on the merged link's start.
+  const links = aggregateLinks([
+    conn("root/B/b1", "root/A/a1", { legend: "eats", arrow: "end" }),
+    conn("root/A/a1", "root/B/b1", { legend: "helps", arrow: "both" }),
+    conn("root/A/a1", "root/B/b1", { legend: "helps" }),
+  ]);
+  assert.equal(links.length, 2);
+
+  const eats = links.find((l) => l.legend === "eats");
+  assert.equal(eats.source.id, "root/A/a1");
+  assert.deepEqual([eats.arrowStart, eats.arrowEnd], [true, false]);
+
+  const helps = links.find((l) => l.legend === "helps");
+  assert.equal(helps.count, 2);
+  assert.deepEqual([helps.arrowStart, helps.arrowEnd], [true, true]);
+});
+
 test("arcsOverlap handles intervals that wrap past 0", () => {
   assert.equal(arcsOverlap({ s: 6.1, e: 6.1 + 0.48 }, { s: 0.05, e: 0.15 }), true);
   assert.equal(arcsOverlap({ s: 1, e: 2 }, { s: 3, e: 4 }), false);

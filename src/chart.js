@@ -113,8 +113,7 @@ function tweenLink(target) {
 export function createChart(
   container,
   {
-    data,
-    connections = [],
+    tree, // { data, connections?, legends?, levelNames? }
     radius = 1000,
     labelSize = 14,
     nodeScale = 1,
@@ -131,6 +130,7 @@ export function createChart(
     .append("svg")
     .attr("role", "group")
     .attr("aria-label", "Radial cluster diagram");
+  const defs = svg.append("defs"); // arrowhead markers, one per legend color
   const g = svg.append("g");
   const gLinks = g.append("g").attr("class", "links");
   const gOuterLinks = g.append("g").attr("class", "outer-links");
@@ -149,6 +149,12 @@ export function createChart(
   // Only angles come from the cluster layout; radii are set from depth in update().
   const cluster = d3.cluster().size([TAU, 1]);
 
+  // Current tree
+  let data;
+  let connections;
+  let legendById; // legend id -> { id, name, color }
+  let levelNames; // name of each depth level below the root (tooltips)
+
   let root; // d3.hierarchy with collapse state
   let allNodes; // every node, including hidden ones (for search)
   let byId; // node id -> node
@@ -159,10 +165,58 @@ export function createChart(
   let pinned = null; // highlighted node
   let fitTimer = 0;
 
-  build();
-  svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.5));
+  // Direction arrows sit at each arc's apex (marker-mid): ends are covered by labels.
+  const markerPrefix = `arrow-${Math.random().toString(36).slice(2, 8)}`;
+  const ARROWS = {
+    forward: { viewBox: "-5 -5 10 10", width: 5, d: "M-5,-5L5,0L-5,5Z" },
+    backward: { viewBox: "-5 -5 10 10", width: 5, d: "M5,-5L-5,0L5,5Z" },
+    both: { viewBox: "-11 -5 22 10", width: 11, d: "M-11,0L-1,-5L-1,5Z M11,0L1,-5L1,5Z" },
+  };
+  const markerUrl = (l) => {
+    const kind = l.arrowStart && l.arrowEnd ? "both" : l.arrowEnd ? "forward" : l.arrowStart ? "backward" : null;
+    if (!kind) return null;
+    return `url(#${markerPrefix}-${legendById.has(l.legend) ? l.legend : "default"}-${kind})`;
+  };
+
+  load(tree);
   update();
   fit();
+
+  function load(next) {
+    data = next.data;
+    connections = next.connections ?? [];
+    legendById = new Map((next.legends ?? []).map((l) => [l.id, l]));
+    levelNames = next.levelNames ?? [];
+
+    renderMarkers();
+    g.selectAll(".links > *, .outer-links > *, .nodes > *").interrupt("layout").remove();
+    build();
+    svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.5));
+  }
+
+  // One marker per legend color and arrow kind.
+  function renderMarkers() {
+    const colors = [{ id: "default", color: "var(--hover)" }, ...legendById.values()];
+    const markers = colors.flatMap((c) =>
+      Object.entries(ARROWS).map(([kind, shape]) => ({ id: `${c.id}-${kind}`, color: c.color, ...shape })),
+    );
+    defs
+      .selectAll("marker")
+      .data(markers, (d) => d.id)
+      .join((enter) =>
+        enter
+          .append("marker")
+          .attr("orient", "auto")
+          .attr("markerHeight", 5)
+          .call((m) => m.append("path")),
+      )
+      .attr("id", (d) => `${markerPrefix}-${d.id}`)
+      .attr("viewBox", (d) => d.viewBox)
+      .attr("markerWidth", (d) => d.width)
+      .select("path")
+      .attr("d", (d) => d.d)
+      .style("fill", (d) => d.color);
+  }
 
   // Labels sit clear of the dot, which grows with the node size setting.
   function labelOffset() {
@@ -266,6 +320,14 @@ export function createChart(
       maxDepth,
     });
 
+    // Arcs start at the edge of each dot rather than its centre.
+    const arcPath = (l) =>
+      outerArcPath(
+        l,
+        dotRadius(l.source, false, nodeScale) + 1,
+        dotRadius(l.target, false, nodeScale) + 1,
+      );
+
     gOuterLinks
       .selectAll("path.outer-link")
       .data(links, (l) => l.key)
@@ -275,7 +337,7 @@ export function createChart(
             .append("path")
             .attr("class", "outer-link")
             .attr("stroke-opacity", 0)
-            .attr("d", outerArcPath)
+            .attr("d", arcPath)
             .on("click", (event, l) => {
               event.stopPropagation();
               pin(l.source);
@@ -285,17 +347,23 @@ export function createChart(
         (exit) => exit.transition(t).attr("stroke-opacity", 0).remove(),
       )
       .style("--w", (l) => `${1.6 + Math.log2(l.count)}px`) // thicker for merged links
-      .call((p) =>
-        p
-          .select("title")
-          .text(
-            (l) =>
-              `${nodeName(l.source)} ↔ ${nodeName(l.target)} (${plural(l.count, "connection")})`,
-          ),
-      )
+      .style("--c", (l) => legendById.get(l.legend)?.color ?? null)
+      .attr("marker-mid", markerUrl)
+      .call((p) => p.select("title").text(arcTooltip))
       .transition(t)
       .attr("stroke-opacity", 1)
-      .attr("d", outerArcPath);
+      .attr("d", arcPath);
+  }
+
+  // Reads in the arrow's direction, e.g. "Crow → Worm · Eats (1 connection)".
+  function arcTooltip(l) {
+    const [from, to] = l.arrowStart && !l.arrowEnd ? [l.target, l.source] : [l.source, l.target];
+    const arrow = l.arrowStart && l.arrowEnd ? "↔" : l.arrowStart || l.arrowEnd ? "→" : "—";
+    const legend = legendById.get(l.legend);
+    return (
+      `${nodeName(from)} ${arrow} ${nodeName(to)}` +
+      `${legend ? ` · ${legend.name}` : ""} (${plural(l.count, "connection")})`
+    );
   }
 
   function renderNodes(nodes, from, to, t) {
@@ -378,6 +446,8 @@ export function createChart(
 
   function tooltip(d) {
     const lines = [d.id.split("/").join(" / ")];
+    const level = d.depth ? levelNames[d.depth - 1] : null;
+    if (level) lines.push(level);
     if (isLeaf(d)) lines.push("Leaf (no children)");
     else {
       lines.push(plural(d.value, "leaf", "leaves"));
@@ -491,6 +561,13 @@ export function createChart(
     collapseAll() {
       collapseAll(root);
       expand(root);
+      update();
+      fit();
+    },
+
+    // Show a different tree: { data, connections?, legends?, levelNames? }.
+    setTree(next) {
+      load(next);
       update();
       fit();
     },

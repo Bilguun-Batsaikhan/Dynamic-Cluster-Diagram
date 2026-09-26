@@ -9,10 +9,28 @@
 
   <body>
     <main class="stage">
+      <div class="tree-title">
+        <h1 id="treeName"></h1>
+        <span id="treeBadge" class="badge"></span>
+      </div>
       <div id="chart" class="chart"></div>
     </main>
 
     <aside class="panel" aria-label="Controls">
+      <section class="panel-section">
+        <h2 class="section-title">Trees</h2>
+        <select id="treeSelect" aria-label="Current tree"></select>
+        <div class="button-row button-row-4">
+          <button type="button" id="btnNewTree">New</button>
+          <button type="button" id="btnEditTree" disabled title="Editing is coming soon">
+            Edit
+          </button>
+          <button type="button" id="btnSaveTree">Save</button>
+          <button type="button" id="btnDeleteTree">Delete</button>
+        </div>
+        <p id="treeStatus" class="panel-note" role="status"></p>
+      </section>
+
       <section class="panel-section">
         <h2 class="section-title">Find</h2>
         <div class="search">
@@ -36,7 +54,7 @@
       </section>
 
       <section class="panel-section">
-        <h2 class="section-title">Tree</h2>
+        <h2 class="section-title">Nodes</h2>
         <div class="button-row">
           <button type="button" id="btnExpandAll">Expand all</button>
           <button type="button" id="btnCollapseAll">Collapse all</button>
@@ -131,8 +149,70 @@
             <span>Selected <small>click a node; Esc clears</small></span>
           </li>
         </ul>
+        <div id="connectionLegendBox" hidden>
+          <h3 class="subsection-title">Connections</h3>
+          <ul id="connectionLegend" class="legend"></ul>
+        </div>
       </section>
     </aside>
+
+    <dialog id="builder" class="builder" aria-labelledby="builderTitle">
+      <form novalidate>
+        <header class="builder-head">
+          <h2 id="builderTitle">New tree</h2>
+          <button type="button" id="builderExample" class="link-button">
+            Fill with example
+          </button>
+          <button type="button" id="builderClose" class="b-icon" aria-label="Close">×</button>
+        </header>
+
+        <div class="builder-body">
+          <div class="builder-col">
+            <section class="b-section">
+              <h3>1. Name and levels</h3>
+              <label class="b-field">
+                <span>Tree name</span>
+                <input id="bName" placeholder="e.g. Animal kingdom" />
+              </label>
+              <label class="b-field b-field-inline">
+                <span>Group levels (above the leaves)</span>
+                <input id="bLevelCount" type="number" min="1" value="2" />
+              </label>
+              <div id="bLevels" class="b-levels"></div>
+            </section>
+
+            <section class="b-section">
+              <h3>2. Nodes</h3>
+              <p id="bSummary" class="b-summary"></p>
+              <div id="bStructure" class="b-structure"></div>
+            </section>
+          </div>
+
+          <div class="builder-col">
+            <section class="b-section">
+              <h3>3. Connection legends</h3>
+              <div id="bLegends" class="b-list"></div>
+              <button type="button" id="bAddLegend" class="b-add-button">+ Add legend</button>
+            </section>
+
+            <section class="b-section">
+              <h3>4. Connections</h3>
+              <p class="b-summary">From · direction · to · legend</p>
+              <div id="bConnections" class="b-list"></div>
+              <button type="button" id="bAddConnection" class="b-add-button">
+                + Add connection
+              </button>
+            </section>
+          </div>
+        </div>
+
+        <footer class="builder-foot">
+          <ul id="bErrors" class="b-errors" role="alert"></ul>
+          <button type="button" id="builderCancel">Cancel</button>
+          <button type="submit" class="primary">Create tree</button>
+        </footer>
+      </form>
+    </dialog>
 
     <!-- D3 (pinned + integrity-checked) -->
     <script

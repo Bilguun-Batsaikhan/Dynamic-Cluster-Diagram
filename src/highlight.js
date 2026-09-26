@@ -26,7 +26,6 @@ export function applyHighlight({ gLinks, gOuterLinks, gNodes }, node, adjacency,
   for (const leaf of endpoints) {
     for (const n of adjacency.get(leaf.id) ?? []) connected.add(n);
   }
-  const connectedIds = new Set([...connected].map((d) => d.id));
 
   const destPathIds = new Set();
   for (const n of connected) {
@@ -43,11 +42,8 @@ export function applyHighlight({ gLinks, gOuterLinks, gNodes }, node, adjacency,
     return "link dim";
   });
 
-  const touches = (l) =>
-    endpointIds.has(l.source.id) ||
-    endpointIds.has(l.target.id) ||
-    connectedIds.has(l.source.id) ||
-    connectedIds.has(l.target.id);
+  // Only the selection's own connections light up, not its neighbours' other links.
+  const touches = (l) => endpointIds.has(l.source.id) || endpointIds.has(l.target.id);
 
   gOuterLinks
     .selectAll("path.outer-link")
