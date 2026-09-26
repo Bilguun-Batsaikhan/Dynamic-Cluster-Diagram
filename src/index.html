@@ -4,25 +4,45 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Radial Cluster Demo</title>
-    <link rel="stylesheet" href="./style.updated.css" />
+    <link rel="stylesheet" href="./style.css" />
   </head>
 
   <body>
     <header class="topbar">
       <div class="left">
-        <div class="title">Radial Cluster (Hierarchy)</div>
-        <div class="hint">
-          Click a node to expand/collapse • Expand All / Collapse All
-        </div>
+        <h1 class="title">Radial Cluster (Hierarchy)</h1>
+        <p class="hint">
+          Click a node to expand/collapse and pin its connections • Esc or click
+          the background to unpin • <kbd>/</kbd> to search
+        </p>
       </div>
 
       <div class="controls">
-        <button id="btnExpandAll">Expand All</button>
-        <button id="btnCollapseAll">Collapse All</button>
-        <button id="btnReset">Reset</button>
-        <button id="btnZoomIn">Zoom In</button>
-        <button id="btnZoomOut">Zoom Out</button>
-        <button id="btnViewReset">Reset View</button>
+        <form id="searchForm" class="control-group search" role="search">
+          <input
+            id="searchInput"
+            type="search"
+            list="nodeOptions"
+            placeholder="Find node…"
+            aria-label="Find node"
+            autocomplete="off"
+          />
+          <datalist id="nodeOptions"></datalist>
+        </form>
+
+        <div class="control-group" role="group" aria-label="Tree">
+          <span class="control-label">Tree</span>
+          <button type="button" id="btnExpandAll">Expand all</button>
+          <button type="button" id="btnCollapseAll">Collapse all</button>
+          <button type="button" id="btnReset">Reset</button>
+        </div>
+
+        <div class="control-group" role="group" aria-label="View">
+          <span class="control-label">View</span>
+          <button type="button" id="btnZoomOut" aria-label="Zoom out">−</button>
+          <button type="button" id="btnZoomIn" aria-label="Zoom in">+</button>
+          <button type="button" id="btnFit">Fit</button>
+        </div>
 
         <div class="control-group">
           <label class="control-label">
@@ -39,7 +59,7 @@
           <span id="radiusValue" class="control-value">1000</span>
         </div>
 
-        <div class="control-group">
+        <div class="control-group" role="group" aria-label="Label size">
           <span class="control-label">Labels</span>
           <button type="button" class="chip" data-label-size="10">S</button>
           <button type="button" class="chip is-active" data-label-size="14">
@@ -53,7 +73,7 @@
         <div class="control-group">
           <label class="control-label">
             <input id="toggleLeafLinks" type="checkbox" checked />
-            Leaf links
+            Connections
           </label>
         </div>
       </div>
@@ -63,9 +83,13 @@
       <div id="chart" class="chart"></div>
     </main>
 
-    <!-- D3 -->
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <!-- D3 (pinned + integrity-checked) -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"
+      integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"
+      crossorigin="anonymous"
+    ></script>
     <!-- App -->
-    <script type="module" src="app.fixed.arcs.js"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>

@@ -180,6 +180,8 @@ export const data = {
   ],
 };
 
+// Endpoints are leaf names or full path ids ("NSAT/SZ-Core/Prod/Tier-DB/App-Cache/host-redis-01").
+// Use the path id when a name appears under more than one parent.
 export const leafConnections = [
   { source: "host-portal-01", target: "host-auth-02" },
   { source: "host-portal-01", target: "host-gw-03" },

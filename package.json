@@ -1,13 +1,13 @@
 {
-  "name": "v4",
+  "name": "dynamic-cluster-diagram",
   "version": "1.0.0",
-  "description": "",
-  "main": "app.fixed.arcs.js",
+  "private": true,
+  "description": "Interactive radial cluster diagram with leaf-to-leaf connection arcs (D3).",
+  "type": "module",
   "scripts": {
     "start": "serve src",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/"
   },
-  "author": "",
   "license": "ISC",
   "devDependencies": {
     "serve": "^14.2.5"

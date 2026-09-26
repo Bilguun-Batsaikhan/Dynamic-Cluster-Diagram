@@ -1,0 +1,286 @@
+:root {
+  /* Backgrounds */
+  --bg: #090623; /* deep navy, less harsh than pure black */
+  --panel: #0f1620;
+
+  /* Text */
+  --text: #e6edf3; /* primary label text */
+  --muted: #9da7b3; /* secondary text */
+
+  /* Graph */
+  --link: rgb(39, 184, 20);
+  --node: #9da7b3;
+  --node-collapsed: #e6edf3;
+
+  /* Interaction */
+  --hover: #58a6ff; /* blue = neutral interaction */
+  --focus: #f2cc60; /* yellow = focus/selection */
+
+  /* Semantic (optional) */
+  --accent: #d16d9e; /* ONLY if nodes have meaning */
+  --dest: #547792; /* destination link id */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ---- Top bar ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(110, 118, 129, 0.25);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 22, 32, 0.9),
+    rgba(15, 22, 32, 0.55)
+  );
+}
+
+.left {
+  display: grid;
+  gap: 2px;
+}
+.title {
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+}
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+}
+kbd {
+  padding: 0 4px;
+  border: 1px solid rgba(110, 118, 129, 0.45);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+button {
+  background: rgba(22, 27, 34, 0.9);
+  color: var(--text);
+  border: 1px solid rgba(110, 118, 129, 0.45);
+  border-radius: 10px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+button:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* ---- Control widgets ---- */
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 10px;
+  background: rgba(22, 27, 34, 0.55);
+  border: 1px solid rgba(110, 118, 129, 0.25);
+}
+.control-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.control-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-size: 12px;
+  opacity: 0.9;
+}
+.control-group input[type="range"] {
+  width: 140px;
+  accent-color: var(--hover);
+}
+.search input {
+  width: 200px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+button.chip {
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+button.chip.is-active {
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2) inset;
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hint {
+    display: none;
+  }
+  .controls {
+    justify-content: flex-start;
+  }
+  .search,
+  .search input {
+    flex: 1;
+  }
+}
+
+/* ---- Chart ---- */
+.stage {
+  flex: 1 1 auto;
+  min-height: 0; /* prevents accidental overflow in flex layouts */
+  width: 100%;
+  overflow: hidden;
+  padding: 12px;
+}
+.chart {
+  width: 100%;
+  height: 100%;
+}
+.chart svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+.chart svg:active {
+  cursor: grabbing;
+}
+
+/*
+ * Colors live here, not in SVG attributes: CSS always overrides fill/stroke
+ * attributes, so highlight state is expressed with classes only.
+ */
+
+/* Tree links */
+.link {
+  fill: none;
+  stroke: var(--link);
+  stroke-width: 1.5px;
+  stroke-opacity: 0.9;
+}
+.link.path {
+  stroke: var(--hover);
+  stroke-width: 5px;
+  stroke-opacity: 1;
+}
+.link.subtree {
+  stroke: var(--hover);
+  stroke-width: 2px;
+  stroke-opacity: 0.6;
+}
+.link.dest {
+  stroke: var(--dest);
+  stroke-width: 2px;
+  stroke-opacity: 0.6;
+}
+.link.dim {
+  stroke-opacity: 0.05;
+}
+
+/* Nodes */
+.node {
+  cursor: pointer;
+  outline: none;
+}
+.node-hit {
+  fill: transparent;
+}
+.node-dot {
+  fill: var(--node);
+}
+.node.collapsed .node-dot {
+  fill: var(--node-collapsed);
+}
+.node:hover .node-dot,
+.node.active .node-dot {
+  fill: var(--hover);
+}
+.node.dim .node-dot {
+  opacity: 0.3;
+}
+.node.pinned .node-dot,
+.node:focus-visible .node-dot {
+  stroke: var(--focus);
+  stroke-width: 3px;
+}
+
+.node-label {
+  fill: var(--text);
+  pointer-events: none;
+  paint-order: stroke; /* halo behind the text for readability */
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.node.active .node-label {
+  fill: #fff;
+  font-weight: 700;
+}
+.node.dim .node-label {
+  fill: var(--muted);
+  opacity: 0.1;
+}
+
+/* Leaf-to-leaf arcs (outer ring); --w is set per link from its connection count */
+.outer-link {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: var(--w, 1.6px);
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.outer-link.dim {
+  opacity: 0.08;
+}
+.outer-link.active {
+  opacity: 1;
+  stroke-width: calc(var(--w, 1.6px) * 1.6);
+}
