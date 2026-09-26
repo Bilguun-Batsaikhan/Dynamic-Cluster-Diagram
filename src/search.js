@@ -176,7 +176,7 @@ export function createSearch({ input, dropdown, crumbs, list, chart }) {
     event.preventDefault();
   });
 
-  // The chart rebuilds its hierarchy on reset, so start browsing from the top again.
+  // The chart rebuilds its hierarchy when the tree changes, so start browsing from the top again.
   return {
     reset() {
       level = chart.rootId();

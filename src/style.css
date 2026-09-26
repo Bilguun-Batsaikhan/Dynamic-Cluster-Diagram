@@ -246,6 +246,9 @@ input:focus-visible {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
 }
+.button-row-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
 .button-row-4 {
   grid-template-columns: repeat(4, 1fr);
 }

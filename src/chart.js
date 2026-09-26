@@ -120,6 +120,7 @@ export function createChart(
     nodeScale = 1,
     arrowSize = 10, // px height of direction arrows
     arcHeight = 1.5,
+    rotation = 0, // degrees clockwise
     showLeafLinks = true,
     // Called with details of the clicked connection (and its apex position in
     // container pixels, updated on pan/zoom), or null when it's deselected.
@@ -265,7 +266,13 @@ export function createChart(
   function update(source = root, duration = DURATION) {
     cluster(root);
     const nodes = root.descendants();
-    for (const d of nodes) d.y = (d.depth / maxDepth) * radius;
+    // Rotate by shifting every angle (not by rotating the drawing), so labels on the
+    // left half still flip and stay readable.
+    const shift = (rotation * Math.PI) / 180;
+    for (const d of nodes) {
+      d.x = (d.x + shift) % TAU;
+      d.y = (d.depth / maxDepth) * radius;
+    }
 
     // Entering elements grow out of the source's old position; exiting ones shrink into its new one.
     const from = { x: source.x0 ?? source.x, y: source.y0 ?? source.y };
@@ -654,14 +661,6 @@ export function createChart(
       fit();
     },
 
-    reset() {
-      // Rebuild the hierarchy from scratch rather than undoing collapse state.
-      g.selectAll(".links > *, .outer-links > *, .outer-hits > *, .nodes > *").interrupt("layout").remove();
-      build();
-      update();
-      fit();
-    },
-
     fit: () => fit({ wait: 0 }),
 
     zoomBy(k) {
@@ -690,6 +689,11 @@ export function createChart(
 
     setArcHeight(h) {
       arcHeight = h;
+      update(root, 0);
+    },
+
+    setRotation(degrees) {
+      rotation = degrees;
       update(root, 0);
     },
 

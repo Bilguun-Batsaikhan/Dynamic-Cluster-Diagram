@@ -239,10 +239,6 @@ window.addEventListener("beforeunload", (event) => {
 // ---- Nodes ----
 $("btnExpandAll").addEventListener("click", () => chart.expandAll());
 $("btnCollapseAll").addEventListener("click", () => chart.collapseAll());
-$("btnReset").addEventListener("click", () => {
-  chart.reset();
-  search.reset();
-});
 
 // ---- View ----
 $("btnZoomIn").addEventListener("click", () => chart.zoomBy(1.2));
@@ -262,6 +258,7 @@ bindSlider(radiusSlider, $("radiusValue"), String, (v) => chart.setRadius(v));
 bindSlider(arcHeightSlider, $("arcHeightValue"), (v) => `${v.toFixed(1)}×`, (v) =>
   chart.setArcHeight(v),
 );
+bindSlider($("rotationSlider"), $("rotationValue"), (v) => `${v}°`, (v) => chart.setRotation(v));
 
 // ---- Appearance ----
 createSizeInput($("labelSizeInput"), {
