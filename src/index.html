@@ -101,9 +101,13 @@
 
       <section class="panel-section">
         <h2 class="section-title">Nodes</h2>
-        <div class="button-row button-row-2">
-          <button type="button" id="btnExpandAll">Expand all</button>
-          <button type="button" id="btnCollapseAll">Collapse all</button>
+        <div class="field">
+          <label class="field-label" for="levelSelect">Expand down to level</label>
+          <div class="level-picker">
+            <button type="button" id="btnLevelUp" aria-label="Show one level less" title="One level less">−</button>
+            <select id="levelSelect"></select>
+            <button type="button" id="btnLevelDown" aria-label="Show one level more" title="One level more">+</button>
+          </div>
         </div>
       </section>
 

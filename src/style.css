@@ -246,8 +246,16 @@ input:focus-visible {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
 }
-.button-row-2 {
-  grid-template-columns: repeat(2, 1fr);
+.level-picker {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 6px;
+}
+.level-picker button {
+  padding: 5px 0;
+}
+.level-picker select {
+  min-width: 0;
 }
 .button-row-4 {
   grid-template-columns: repeat(4, 1fr);

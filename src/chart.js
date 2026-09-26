@@ -41,14 +41,14 @@ function expand(d) {
   }
 }
 
-function collapseAll(d) {
-  (d.children ?? d._children ?? []).forEach(collapseAll);
-  collapse(d);
-}
-
-function expandAll(d) {
-  expand(d);
-  (d.children ?? []).forEach(expandAll);
+// Show every node down to depth `level`: nodes above it are expanded, nodes at or
+// below it are collapsed (level 1 = only the root's children).
+function expandToLevel(d, level) {
+  const kids = d.children ?? d._children;
+  if (!kids) return;
+  if (d.depth < level) expand(d);
+  else collapse(d);
+  kids.forEach((c) => expandToLevel(c, level));
 }
 
 const polar = (d) => ({ x: d.x, y: d.y });
@@ -125,6 +125,8 @@ export function createChart(
     // Called with details of the clicked connection (and its apex position in
     // container pixels, updated on pan/zoom), or null when it's deselected.
     onSelectLink = () => {},
+    // Called after every redraw with expandedLevel() (see below).
+    onExpandChange = () => {},
   },
 ) {
   let width = 0;
@@ -254,8 +256,7 @@ export function createChart(
     resolved = resolveConnections(root.leaves(), connections);
 
     // Initial state: everything collapsed except the root.
-    collapseAll(root);
-    expand(root);
+    expandToLevel(root, 1);
     root.x0 = 0;
     root.y0 = 0;
     pinned = null;
@@ -283,6 +284,7 @@ export function createChart(
     renderOuterLinks(nodes, t);
     renderNodes(nodes, from, to, t);
     refreshHighlight();
+    onExpandChange(expandedLevel());
 
     for (const d of nodes) {
       d.x0 = d.x;
@@ -614,6 +616,19 @@ export function createChart(
     );
   }
 
+  // How far the visible tree is expanded: `level` is the shallowest depth with a
+  // collapsed node (maxDepth when nothing is collapsed); `uniform` is false when the
+  // view doesn't match a single level (e.g. after double-clicking nodes).
+  function expandedLevel() {
+    const visible = root.descendants();
+    const collapsedDepths = visible.filter((d) => d._children).map((d) => d.depth);
+    const level = collapsedDepths.length ? Math.min(...collapsedDepths) : maxDepth;
+    const uniform =
+      collapsedDepths.every((depth) => depth === level) &&
+      visible.every((d) => !d.children || d.depth < level);
+    return { level, uniform, maxDepth };
+  }
+
   // Ranked matches: exact name, name prefix, name substring, then path substring.
   function search(query, limit) {
     const q = query.trim().toLowerCase();
@@ -641,15 +656,17 @@ export function createChart(
     pathTo: (id) => byId.get(id)?.ancestors().reverse().map(nodeInfo) ?? [],
     search: (query, limit = 50) => search(query, limit),
 
-    expandAll() {
-      expandAll(root);
-      update();
-      fit();
-    },
+    // Levels the tree can be expanded to, labelled with the tree's level names.
+    levelOptions: () =>
+      d3.range(1, maxDepth + 1).map((level) => ({
+        level,
+        label: `${level} · ${levelNames[level - 1] || `Level ${level}`}${level === maxDepth ? " (all)" : ""}`,
+      })),
 
-    collapseAll() {
-      collapseAll(root);
-      expand(root);
+    expandedLevel,
+
+    setExpandLevel(level) {
+      expandToLevel(root, Math.max(1, Math.min(maxDepth, level)));
       update();
       fit();
     },

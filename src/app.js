@@ -16,6 +16,8 @@ const arcHeightSlider = $("arcHeightSlider");
 const toggleLeafLinks = $("toggleLeafLinks");
 const searchInput = $("searchInput");
 const treeSelect = $("treeSelect");
+const levelSelect = $("levelSelect");
+let expandState = { level: 1, uniform: true, maxDepth: 1 }; // last chart.expandedLevel()
 
 // ---- Trees: the random example first, then any saved in this browser ----
 const exampleTree = {
@@ -47,7 +49,44 @@ const chart = createChart($("chart"), {
   arrowSize: SIZES.arrow.value,
   showLeafLinks: toggleLeafLinks.checked,
   onSelectLink: renderConnectionCard,
+  onExpandChange: syncLevelPicker,
 });
+
+// ---- "Expand down to level" picker ----
+// Options follow the current tree's depth and level names; "Custom" appears when
+// nodes were expanded/collapsed by hand.
+function renderLevelOptions() {
+  const custom = Object.assign(document.createElement("option"), {
+    value: "custom",
+    textContent: "Custom",
+    disabled: true,
+  });
+  levelSelect.replaceChildren(
+    custom,
+    ...chart.levelOptions().map(({ level, label }) =>
+      Object.assign(document.createElement("option"), { value: level, textContent: label }),
+    ),
+  );
+  syncLevelPicker(chart.expandedLevel());
+}
+
+// Called by the chart after every redraw, so don't touch `chart` here.
+function syncLevelPicker(state) {
+  expandState = state;
+  const matches = state.uniform && state.level >= 1;
+  const custom = levelSelect.querySelector('option[value="custom"]');
+  if (custom) custom.hidden = matches;
+  levelSelect.value = matches ? String(state.level) : "custom";
+  $("btnLevelUp").disabled = state.level <= 1 && matches;
+  $("btnLevelDown").disabled = state.level >= state.maxDepth && matches;
+}
+
+levelSelect.addEventListener("change", () => chart.setExpandLevel(+levelSelect.value));
+$("btnLevelUp").addEventListener("click", () => {
+  const { level, uniform } = expandState;
+  chart.setExpandLevel(uniform ? level - 1 : level);
+});
+$("btnLevelDown").addEventListener("click", () => chart.setExpandLevel(expandState.level + 1));
 
 // ---- Connection details card: shown when an arc is clicked, anchored to its apex ----
 const ARROW_GLYPHS = { end: "→", both: "↔", none: "—" };
@@ -144,6 +183,7 @@ function selectTree(tree) {
   applyStyle(tree.style);
   chart.setTree(tree);
   search.reset();
+  renderLevelOptions();
   renderTreeUI();
 }
 
@@ -236,10 +276,6 @@ window.addEventListener("beforeunload", (event) => {
   if (trees.some(hasUnsavedWork)) event.preventDefault();
 });
 
-// ---- Nodes ----
-$("btnExpandAll").addEventListener("click", () => chart.expandAll());
-$("btnCollapseAll").addEventListener("click", () => chart.collapseAll());
-
 // ---- View ----
 $("btnZoomIn").addEventListener("click", () => chart.zoomBy(1.2));
 $("btnZoomOut").addEventListener("click", () => chart.zoomBy(1 / 1.2));
@@ -320,4 +356,5 @@ window.addEventListener("resize", () => {
   resizeTimer = setTimeout(chart.resize, 150);
 });
 
+renderLevelOptions();
 renderTreeUI();
