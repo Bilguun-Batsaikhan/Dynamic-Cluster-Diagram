@@ -2,6 +2,8 @@
   /* Backgrounds */
   --bg: #090623; /* deep navy, less harsh than pure black */
   --panel: #0f1620;
+  --panel-raised: #161d29;
+  --border: rgba(110, 118, 129, 0.35);
 
   /* Text */
   --text: #e6edf3; /* primary label text */
@@ -9,16 +11,16 @@
 
   /* Graph */
   --link: rgb(39, 184, 20);
-  --node: #9da7b3;
-  --node-collapsed: #e6edf3;
+  --node: #9da7b3; /* expanded branch */
+  --node-collapsed: #e6edf3; /* collapsed branch: can be expanded */
+  --leaf: #d16d9e; /* leaf: nothing to expand */
 
   /* Interaction */
   --hover: #58a6ff; /* blue = neutral interaction */
   --focus: #f2cc60; /* yellow = focus/selection */
-
-  /* Semantic (optional) */
-  --accent: #d16d9e; /* ONLY if nodes have meaning */
   --dest: #547792; /* destination link id */
+
+  --panel-width: 272px;
 }
 
 * {
@@ -40,144 +42,19 @@ body {
     sans-serif;
 }
 
+/* Chart on the left, control panel on the right */
 body {
   display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* ---- Top bar ---- */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(110, 118, 129, 0.25);
-  background: linear-gradient(
-    180deg,
-    rgba(15, 22, 32, 0.9),
-    rgba(15, 22, 32, 0.55)
-  );
-}
-
-.left {
-  display: grid;
-  gap: 2px;
-}
-.title {
-  font-size: 1rem;
-  font-weight: 650;
-  letter-spacing: 0.2px;
-}
-.hint {
-  font-size: 13px;
-  color: var(--muted);
-}
-kbd {
-  padding: 0 4px;
-  border: 1px solid rgba(110, 118, 129, 0.45);
-  border-radius: 4px;
-  font: inherit;
-}
-
-.controls {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-button {
-  background: rgba(22, 27, 34, 0.9);
-  color: var(--text);
-  border: 1px solid rgba(110, 118, 129, 0.45);
-  border-radius: 10px;
-  padding: 7px 10px;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-}
-button:hover {
-  border-color: rgba(255, 255, 255, 0.35);
-}
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-
-/* ---- Control widgets ---- */
-.control-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 6px;
-  border-radius: 10px;
-  background: rgba(22, 27, 34, 0.55);
-  border: 1px solid rgba(110, 118, 129, 0.25);
-}
-.control-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 13px;
-  white-space: nowrap;
-}
-.control-value {
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  font-size: 12px;
-  opacity: 0.9;
-}
-.control-group input[type="range"] {
-  width: 140px;
-  accent-color: var(--hover);
-}
-.search input {
-  width: 200px;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-}
-button.chip {
-  padding: 6px 8px;
-  border-radius: 999px;
-  font-weight: 700;
-}
-button.chip.is-active {
-  border-color: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2) inset;
-}
-
-@media (max-width: 720px) {
-  .topbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .hint {
-    display: none;
-  }
-  .controls {
-    justify-content: flex-start;
-  }
-  .search,
-  .search input {
-    flex: 1;
-  }
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* ---- Chart ---- */
 .stage {
   flex: 1 1 auto;
-  min-height: 0; /* prevents accidental overflow in flex layouts */
-  width: 100%;
-  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
   padding: 12px;
 }
 .chart {
@@ -194,8 +71,262 @@ button.chip.is-active {
   cursor: grabbing;
 }
 
+/* ---- Control panel ---- */
+.panel {
+  flex: 0 0 var(--panel-width);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+}
+
+.panel-section {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-section:last-child {
+  border-bottom: none;
+}
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+button,
+select,
+input[type="search"] {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+button {
+  padding: 7px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover,
+select:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+select {
+  padding: 5px 8px;
+  cursor: pointer;
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+.field-label output {
+  color: var(--text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.field input[type="range"] {
+  width: 100%;
+  accent-color: var(--hover);
+}
+.field-inline {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.field-inline select {
+  min-width: 110px;
+}
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.field-check input {
+  accent-color: var(--hover);
+}
+
+/* ---- Search / browse dropdown ---- */
+.search {
+  position: relative;
+}
+.search input {
+  width: 100%;
+  padding: 8px 10px;
+}
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 440px);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.dropdown[hidden] {
+  display: none;
+}
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.crumb {
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--hover);
+  font-size: 12px;
+  font-weight: 500;
+}
+.crumb:hover {
+  text-decoration: underline;
+}
+.crumb[aria-current] {
+  color: var(--text);
+  font-weight: 700;
+}
+.crumb-sep,
+.crumb-note {
+  color: var(--muted);
+}
+.crumb-note {
+  padding: 2px 4px;
+}
+#searchList {
+  list-style: none;
+  overflow-y: auto;
+  padding: 4px;
+}
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.option[aria-selected="true"] {
+  background: rgba(88, 166, 255, 0.16);
+}
+.option-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.option-name,
+.option-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.option-path {
+  font-size: 11px;
+  color: var(--muted);
+}
+.option-meta {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.option-empty {
+  padding: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- Legend ---- */
+.legend {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.legend small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+.swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--node);
+}
+.swatch.collapsed {
+  background: var(--node-collapsed);
+}
+.swatch.leaf {
+  width: 9px;
+  height: 9px;
+  margin-inline: 1.5px;
+  background: var(--leaf);
+}
+.swatch.selected {
+  background: var(--hover);
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+/* Narrow screens: chart on top, panel below */
+@media (max-width: 720px) {
+  body {
+    flex-direction: column;
+  }
+  .panel {
+    flex: 0 0 auto;
+    max-height: 45vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
 /*
- * Colors live here, not in SVG attributes: CSS always overrides fill/stroke
+ * Graph colors live here, not in SVG attributes: CSS always overrides fill/stroke
  * attributes, so highlight state is expressed with classes only.
  */
 
@@ -225,7 +356,7 @@ button.chip.is-active {
   stroke-opacity: 0.05;
 }
 
-/* Nodes */
+/* Nodes: expanded = grey, collapsed = white (larger), leaf = pink (smaller) */
 .node {
   cursor: pointer;
   outline: none;
@@ -239,14 +370,25 @@ button.chip.is-active {
 .node.collapsed .node-dot {
   fill: var(--node-collapsed);
 }
+.node.leaf .node-dot {
+  fill: var(--leaf);
+}
 .node:hover .node-dot,
 .node.active .node-dot {
   fill: var(--hover);
+}
+/* Leaves keep their color when active so they still read as "nothing to expand" */
+.node.leaf:hover .node-dot,
+.node.leaf.active .node-dot {
+  fill: var(--leaf);
+  stroke: var(--hover);
+  stroke-width: 2px;
 }
 .node.dim .node-dot {
   opacity: 0.3;
 }
 .node.pinned .node-dot,
+.node.leaf.pinned .node-dot,
 .node:focus-visible .node-dot {
   stroke: var(--focus);
   stroke-width: 3px;

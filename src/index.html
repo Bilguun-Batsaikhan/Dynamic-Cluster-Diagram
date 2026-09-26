@@ -8,81 +8,131 @@
   </head>
 
   <body>
-    <header class="topbar">
-      <div class="left">
-        <h1 class="title">Radial Cluster (Hierarchy)</h1>
-        <p class="hint">
-          Click a node to highlight its connections • Double-click to
-          expand/collapse • Esc or click the background to clear •
-          <kbd>/</kbd> to search
-        </p>
-      </div>
+    <main class="stage">
+      <div id="chart" class="chart"></div>
+    </main>
 
-      <div class="controls">
-        <form id="searchForm" class="control-group search" role="search">
+    <aside class="panel" aria-label="Controls">
+      <section class="panel-section">
+        <h2 class="section-title">Find</h2>
+        <div class="search">
           <input
             id="searchInput"
             type="search"
-            list="nodeOptions"
-            placeholder="Find node…"
-            aria-label="Find node"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-controls="searchList"
+            aria-label="Search or browse nodes"
+            placeholder="Search or browse…  ( / )"
             autocomplete="off"
+            spellcheck="false"
           />
-          <datalist id="nodeOptions"></datalist>
-        </form>
+          <div id="searchDropdown" class="dropdown" hidden>
+            <nav id="searchCrumbs" class="crumbs" aria-label="Current level"></nav>
+            <ul id="searchList" role="listbox" aria-label="Nodes"></ul>
+          </div>
+        </div>
+      </section>
 
-        <div class="control-group" role="group" aria-label="Tree">
-          <span class="control-label">Tree</span>
+      <section class="panel-section">
+        <h2 class="section-title">Tree</h2>
+        <div class="button-row">
           <button type="button" id="btnExpandAll">Expand all</button>
           <button type="button" id="btnCollapseAll">Collapse all</button>
           <button type="button" id="btnReset">Reset</button>
         </div>
+      </section>
 
-        <div class="control-group" role="group" aria-label="View">
-          <span class="control-label">View</span>
+      <section class="panel-section">
+        <h2 class="section-title">View</h2>
+        <div class="button-row">
           <button type="button" id="btnZoomOut" aria-label="Zoom out">−</button>
           <button type="button" id="btnZoomIn" aria-label="Zoom in">+</button>
           <button type="button" id="btnFit">Fit</button>
         </div>
+      </section>
 
-        <div class="control-group">
-          <label class="control-label">
-            Radius
-            <input
-              id="radiusSlider"
-              type="range"
-              min="400"
-              max="1800"
-              step="50"
-              value="1000"
-            />
-          </label>
-          <span id="radiusValue" class="control-value">1000</span>
-        </div>
+      <section class="panel-section">
+        <h2 class="section-title">Layout</h2>
+        <label class="field">
+          <span class="field-label">
+            Radius <output id="radiusValue" for="radiusSlider">1000</output>
+          </span>
+          <input
+            id="radiusSlider"
+            type="range"
+            min="400"
+            max="1800"
+            step="50"
+            value="1000"
+          />
+        </label>
+        <label class="field">
+          <span class="field-label">
+            Arc height <output id="arcHeightValue" for="arcHeightSlider">1.5×</output>
+          </span>
+          <input
+            id="arcHeightSlider"
+            type="range"
+            min="0"
+            max="3"
+            step="0.1"
+            value="1.5"
+          />
+        </label>
+      </section>
 
-        <div class="control-group" role="group" aria-label="Label size">
-          <span class="control-label">Labels</span>
-          <button type="button" class="chip" data-label-size="10">S</button>
-          <button type="button" class="chip is-active" data-label-size="14">
-            M
-          </button>
-          <button type="button" class="chip" data-label-size="18">L</button>
-          <button type="button" class="chip" data-label-size="22">XL</button>
-          <button type="button" class="chip" data-label-size="30">XXL</button>
-        </div>
+      <section class="panel-section">
+        <h2 class="section-title">Appearance</h2>
+        <label class="field field-inline">
+          <span class="field-label">Label size</span>
+          <select id="labelSize">
+            <option value="10">Small</option>
+            <option value="14" selected>Medium</option>
+            <option value="18">Large</option>
+            <option value="22">X-Large</option>
+            <option value="30">XX-Large</option>
+          </select>
+        </label>
+        <label class="field field-inline">
+          <span class="field-label">Node size</span>
+          <select id="nodeSize">
+            <option value="0.75">Small</option>
+            <option value="1" selected>Medium</option>
+            <option value="1.5">Large</option>
+            <option value="2">X-Large</option>
+            <option value="3">XX-Large</option>
+          </select>
+        </label>
+        <label class="field field-check">
+          <input id="toggleLeafLinks" type="checkbox" checked />
+          Show connections
+        </label>
+      </section>
 
-        <div class="control-group">
-          <label class="control-label">
-            <input id="toggleLeafLinks" type="checkbox" checked />
-            Connections
-          </label>
-        </div>
-      </div>
-    </header>
-
-    <main class="stage">
-      <div id="chart" class="chart"></div>
-    </main>
+      <section class="panel-section">
+        <h2 class="section-title">Legend</h2>
+        <ul class="legend">
+          <li>
+            <span class="swatch collapsed"></span>
+            <span>Collapsed <small>double-click to expand</small></span>
+          </li>
+          <li>
+            <span class="swatch expanded"></span>
+            <span>Expanded <small>double-click to collapse</small></span>
+          </li>
+          <li>
+            <span class="swatch leaf"></span>
+            <span>Leaf <small>no children</small></span>
+          </li>
+          <li>
+            <span class="swatch selected"></span>
+            <span>Selected <small>click a node; Esc clears</small></span>
+          </li>
+        </ul>
+      </section>
+    </aside>
 
     <!-- D3 (pinned + integrity-checked) -->
     <script

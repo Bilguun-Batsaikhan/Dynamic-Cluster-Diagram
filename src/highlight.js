@@ -1,12 +1,16 @@
 // Click-to-pin highlighting. All styling lives in style.css; this module only toggles
 // classes (plus the dot radius, which CSS can't set portably on SVG circles).
 
-export const dotRadius = (d, active = false) => (active ? 9 : d._children ? 8 : 6);
+// Collapsed nodes are largest (they hide more), leaves smallest; `scale` is the node size setting.
+export function dotRadius(d, active = false, scale = 1) {
+  const base = d._children ? 8 : d.children ? 6 : 5;
+  return (base + (active ? 3 : 0)) * scale;
+}
 
 // Highlight `node`, its root path, its visible subtree, every node connected to that
 // subtree by an outer link, and those nodes' root paths.
 // `adjacency` maps node id -> Set of connected (visible) nodes.
-export function applyHighlight({ gLinks, gOuterLinks, gNodes }, node, adjacency) {
+export function applyHighlight({ gLinks, gOuterLinks, gNodes }, node, adjacency, scale = 1) {
   const pathIds = new Set(node.ancestors().map((d) => d.id));
 
   // Visible leaves of the subtree (collapsed nodes count as leaves).
@@ -55,10 +59,10 @@ export function applyHighlight({ gLinks, gOuterLinks, gNodes }, node, adjacency)
     .classed("active", (d) => activeIds.has(d.id))
     .classed("dim", (d) => !activeIds.has(d.id))
     .select("circle.node-dot")
-    .attr("r", (d) => dotRadius(d, activeIds.has(d.id)));
+    .attr("r", (d) => dotRadius(d, activeIds.has(d.id), scale));
 }
 
-export function clearHighlight({ gLinks, gOuterLinks, gNodes }) {
+export function clearHighlight({ gLinks, gOuterLinks, gNodes }, scale = 1) {
   gLinks.selectAll("path.link").attr("class", "link");
 
   gOuterLinks
@@ -71,5 +75,5 @@ export function clearHighlight({ gLinks, gOuterLinks, gNodes }) {
     .classed("active", false)
     .classed("dim", false)
     .select("circle.node-dot")
-    .attr("r", (d) => dotRadius(d));
+    .attr("r", (d) => dotRadius(d, false, scale));
 }

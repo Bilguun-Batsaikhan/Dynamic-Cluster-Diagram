@@ -12,18 +12,17 @@ import {
   radialLinkPath,
   outerArcPath,
 } from "./layout.js";
-import { applyHighlight, clearHighlight } from "./highlight.js";
+import { applyHighlight, clearHighlight, dotRadius } from "./highlight.js";
 
 const DURATION = 400;
 
 // Arc tuning: stacked arcs sit ARC_GAP apart; links between distant parts of the
-// hierarchy bulge outward by up to radius * ARC_SPAN_BOOST (shaped by ARC_SPAN_POW).
+// hierarchy bulge outward by up to radius * arcHeight (shaped by ARC_SPAN_POW).
 const ARC_GAP = 40;
-const ARC_SPAN_BOOST = 1.5;
 const ARC_SPAN_POW = 2;
 
-const LABEL_OFFSET = 12; // px between a dot and its label
 const CHAR_WIDTH = 0.6; // rough glyph width as a fraction of font size
+const HIT_MARGIN = 14; // extra clickable radius around each dot
 
 // ---- Expand / collapse ----
 // `children` holds visible children; `_children` holds hidden ones (ignored by layout).
@@ -60,11 +59,25 @@ function translate(p) {
 
 // Keep labels readable around the circle: flip the ones on the left half.
 // The root sits at the centre, so its label is simply placed above it.
-function labelTransform(d) {
-  if (!d.depth) return `translate(0,${-LABEL_OFFSET - 4})`;
+function labelTransform(d, offset) {
+  if (!d.depth) return `translate(0,${-offset - 4})`;
   const rotate = (d.x * 180) / Math.PI - 90;
   const flip = d.x < Math.PI ? "" : " rotate(180)";
-  return `rotate(${rotate}) translate(${LABEL_OFFSET},0)${flip}`;
+  return `rotate(${rotate}) translate(${offset},0)${flip}`;
+}
+
+const isLeaf = (d) => !d.children && !d._children;
+
+// Plain description of a node for the search / browse UI.
+function nodeInfo(d) {
+  const kids = d.children ?? d._children ?? [];
+  return {
+    id: d.id,
+    name: nodeName(d),
+    parentId: d.parent?.id ?? null,
+    childCount: kids.length,
+    leafCount: d.value,
+  };
 }
 
 // Transitions interpolate in polar space so nodes and links sweep around the circle
@@ -99,7 +112,15 @@ function tweenLink(target) {
 
 export function createChart(
   container,
-  { data, connections = [], radius = 1000, labelSize = 14, showLeafLinks = true },
+  {
+    data,
+    connections = [],
+    radius = 1000,
+    labelSize = 14,
+    nodeScale = 1,
+    arcHeight = 1.5,
+    showLeafLinks = true,
+  },
 ) {
   let width = 0;
   let height = 0;
@@ -130,6 +151,7 @@ export function createChart(
 
   let root; // d3.hierarchy with collapse state
   let allNodes; // every node, including hidden ones (for search)
+  let byId; // node id -> node
   let maxDepth; // depth of the full tree, so rings don't move when expanding
   let resolved; // leaf connections resolved to leaf nodes
   let adjacency = new Map(); // node id -> Set of connected visible nodes
@@ -142,6 +164,11 @@ export function createChart(
   update();
   fit();
 
+  // Labels sit clear of the dot, which grows with the node size setting.
+  function labelOffset() {
+    return 3 + 9 * nodeScale;
+  }
+
   function measure() {
     width = container.clientWidth || 900;
     height = container.clientHeight || 700;
@@ -153,6 +180,7 @@ export function createChart(
     root.count(); // node.value = number of leaves below it
     maxDepth = root.height || 1;
     allNodes = root.descendants();
+    byId = new Map(allNodes.map((d) => [d.id, d]));
     resolved = resolveConnections(root.leaves(), connections);
 
     // Initial state: everything collapsed except the root.
@@ -231,9 +259,9 @@ export function createChart(
         (d) => nodeName(d).length,
       ) ?? 0;
     assignArcLayers(links, {
-      rBase: outerY + LABEL_OFFSET + longestLabel * labelSize * CHAR_WIDTH,
+      rBase: outerY + labelOffset() + longestLabel * labelSize * CHAR_WIDTH,
       gap: ARC_GAP,
-      spanBoost: radius * ARC_SPAN_BOOST,
+      spanBoost: radius * arcHeight,
       spanPow: ARC_SPAN_POW,
       maxDepth,
     });
@@ -302,12 +330,12 @@ export function createChart(
             });
 
           node.append("circle").attr("class", "node-dot");
-          node.append("circle").attr("class", "node-hit").attr("r", 20); // big hit area
+          node.append("circle").attr("class", "node-hit"); // big hit area
           node
             .append("text")
             .attr("class", "node-label")
             .attr("dy", "0.32em")
-            .attr("transform", labelTransform)
+            .attr("transform", (d) => labelTransform(d, labelOffset()))
             .text(nodeName);
           node.append("title");
           return node;
@@ -325,17 +353,22 @@ export function createChart(
     sel
       .attr("pointer-events", null) // in case a node re-entered while exiting
       .classed("collapsed", (d) => !!d._children)
+      .classed("leaf", isLeaf)
       .attr("aria-expanded", (d) => (d.children ? "true" : d._children ? "false" : null))
-      .attr("aria-label", (d) => `${nodeName(d)}${d._children ? " (collapsed)" : ""}`);
+      .attr(
+        "aria-label",
+        (d) => `${nodeName(d)}${d._children ? " (collapsed)" : isLeaf(d) ? " (leaf)" : ""}`,
+      );
 
     sel.select("title").text(tooltip);
+    sel.select("circle.node-hit").attr("r", (d) => dotRadius(d, false, nodeScale) + HIT_MARGIN);
 
     sel
       .select("text.node-label")
       .style("font-size", `${labelSize}px`)
       .attr("text-anchor", (d) => (!d.depth ? "middle" : d.x < Math.PI ? "start" : "end"))
       .transition(t)
-      .attr("transform", labelTransform);
+      .attr("transform", (d) => labelTransform(d, labelOffset()));
 
     sel
       .transition(t)
@@ -345,8 +378,10 @@ export function createChart(
 
   function tooltip(d) {
     const lines = [d.id.split("/").join(" / ")];
-    if (d.children || d._children) {
-      lines.push(`${plural(d.value, "leaf", "leaves")}${d._children ? " (collapsed)" : ""}`);
+    if (isLeaf(d)) lines.push("Leaf (no children)");
+    else {
+      lines.push(plural(d.value, "leaf", "leaves"));
+      lines.push(d._children ? "Double-click to expand" : "Double-click to collapse");
     }
     const n = connectionCount.get(d.id);
     if (n) lines.push(plural(n, "connection"));
@@ -359,8 +394,8 @@ export function createChart(
     const target = pinned && visibleAncestor(pinned);
     gNodes.selectAll("g.node").classed("pinned", (d) => d === target);
 
-    if (target) applyHighlight(layers, target, adjacency);
-    else clearHighlight(layers);
+    if (target) applyHighlight(layers, target, adjacency, nodeScale);
+    else clearHighlight(layers, nodeScale);
   }
 
   function pin(d) {
@@ -420,9 +455,32 @@ export function createChart(
     );
   }
 
+  // Ranked matches: exact name, name prefix, name substring, then path substring.
+  function search(query, limit) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const rank = (d) => {
+      const name = nodeName(d).toLowerCase();
+      if (name === q) return 0;
+      if (name.startsWith(q)) return 1;
+      if (name.includes(q)) return 2;
+      return d.id.toLowerCase().includes(q) ? 3 : -1;
+    };
+    return allNodes
+      .map((d) => [rank(d), d])
+      .filter(([r]) => r >= 0)
+      .sort((a, b) => a[0] - b[0] || a[1].depth - b[1].depth)
+      .slice(0, limit)
+      .map(([, d]) => nodeInfo(d));
+  }
+
   // ---- Public API ----
   return {
-    nodeIds: () => allNodes.map((d) => d.id),
+    // Hierarchy lookups for the search / browse dropdown (they see collapsed nodes too).
+    rootId: () => root.id,
+    childrenOf: (id) => (byId.get(id)?.children ?? byId.get(id)?._children ?? []).map(nodeInfo),
+    pathTo: (id) => byId.get(id)?.ancestors().reverse().map(nodeInfo) ?? [],
+    search: (query, limit = 50) => search(query, limit),
 
     expandAll() {
       expandAll(root);
@@ -461,6 +519,16 @@ export function createChart(
       update(root, 0);
     },
 
+    setNodeScale(scale) {
+      nodeScale = scale;
+      update(root, 0);
+    },
+
+    setArcHeight(h) {
+      arcHeight = h;
+      update(root, 0);
+    },
+
     setShowLeafLinks(show) {
       showLeafLinks = show;
       update();
@@ -468,11 +536,12 @@ export function createChart(
 
     unpin,
 
-    // Expand the path to the first node matching `query`, pin it and pan to it.
-    reveal(query) {
+    // Expand the path to the first node matching `query` (an id or name), pin it and
+    // pan to it. With `expand`, the node's own children are shown too.
+    reveal(query, { expand: expandNode = false } = {}) {
       const node = find(query);
       if (!node) return false;
-      node.ancestors().slice(1).forEach(expand);
+      node.ancestors().slice(expandNode ? 0 : 1).forEach(expand);
       pinned = node;
       update();
 
