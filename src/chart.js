@@ -139,6 +139,8 @@ export function createChart(
   const g = svg.append("g");
   const gLinks = g.append("g").attr("class", "links");
   const gOuterLinks = g.append("g").attr("class", "outer-links");
+  // Invisible, wide click targets for the arcs (above them, below the nodes).
+  const gOuterHits = g.append("g").attr("class", "outer-hits");
   const gNodes = g.append("g").attr("class", "nodes");
   const layers = { gLinks, gOuterLinks, gNodes };
 
@@ -200,7 +202,7 @@ export function createChart(
     levelNames = next.levelNames ?? [];
 
     renderMarkers();
-    g.selectAll(".links > *, .outer-links > *, .nodes > *").interrupt("layout").remove();
+    g.selectAll(".links > *, .outer-links > *, .outer-hits > *, .nodes > *").interrupt("layout").remove();
     build();
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.5));
   }
@@ -346,32 +348,52 @@ export function createChart(
             .append("path")
             .attr("class", "outer-link")
             .attr("stroke-opacity", 0)
-            .attr("d", arcPath)
-            .on("click", (event, l) => {
-              event.stopPropagation();
-              selectLink(l);
-            })
-            .call((p) => p.append("title")),
+            .attr("d", arcPath),
         (update) => update,
         (exit) => exit.transition(t).attr("stroke-opacity", 0).remove(),
       )
       .style("--w", (l) => `${1.6 + Math.log2(l.count)}px`) // thicker for merged links
       .style("--c", (l) => legendById.get(l.legend)?.color ?? null)
       .attr("marker-mid", markerUrl)
-      .call((p) => p.select("title").text(arcTooltip))
       .transition(t)
       .attr("stroke-opacity", 1)
       .attr("d", arcPath);
+
+    // Click/hover targets: a wide transparent stroke along each arc, a fixed width on
+    // screen at any zoom (non-scaling stroke, see style.css).
+    const arcFor = (l) => gOuterLinks.selectAll("path.outer-link").filter((x) => x.key === l.key);
+    gOuterHits
+      .selectAll("path.outer-hit")
+      .data(links, (l) => l.key)
+      .join(
+        (enter) =>
+          enter
+            .append("path")
+            .attr("class", "outer-hit")
+            .attr("d", arcPath)
+            .on("click", (event, l) => {
+              event.stopPropagation();
+              selectLink(l);
+            })
+            .on("mouseenter", (event, l) => arcFor(l).classed("hover", true))
+            .on("mouseleave", (event, l) => arcFor(l).classed("hover", false))
+            .call((p) => p.append("title")),
+        (update) => update,
+        (exit) => exit.remove(),
+      )
+      .call((p) => p.select("title").text(arcTooltip))
+      .transition(t)
+      .attr("d", arcPath);
   }
 
-  // Reads in the arrow's direction, e.g. "Crow → Worm · Eats (1 connection)".
+  // Reads in the arrow's direction, e.g. "Crow â†’ Worm Â· Eats (1 connection)".
   function arcTooltip(l) {
     const [from, to] = l.arrowStart && !l.arrowEnd ? [l.target, l.source] : [l.source, l.target];
-    const arrow = l.arrowStart && l.arrowEnd ? "↔" : l.arrowStart || l.arrowEnd ? "→" : "—";
+    const arrow = l.arrowStart && l.arrowEnd ? "â†”" : l.arrowStart || l.arrowEnd ? "â†’" : "â€”";
     const legend = legendById.get(l.legend);
     return (
       `${nodeName(from)} ${arrow} ${nodeName(to)}` +
-      `${legend ? ` · ${legend.name}` : ""} (${plural(l.count, "connection")})\nClick for details`
+      `${legend ? ` Â· ${legend.name}` : ""} (${plural(l.count, "connection")})\nClick for details`
     );
   }
 
@@ -634,7 +656,7 @@ export function createChart(
 
     reset() {
       // Rebuild the hierarchy from scratch rather than undoing collapse state.
-      g.selectAll(".links > *, .outer-links > *, .nodes > *").interrupt("layout").remove();
+      g.selectAll(".links > *, .outer-links > *, .outer-hits > *, .nodes > *").interrupt("layout").remove();
       build();
       update();
       fit();

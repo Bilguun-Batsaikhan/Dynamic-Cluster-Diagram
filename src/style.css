@@ -861,14 +861,24 @@ button.primary:hover {
   stroke-width: var(--w, 1.6px);
   stroke-linecap: round;
   opacity: 0.85;
-  cursor: pointer;
+  pointer-events: none; /* clicks go to .outer-hit */
 }
 .outer-link.dim {
   opacity: 0.08;
 }
-.outer-link.active {
+.outer-link.active,
+.outer-link.hover {
   opacity: 1;
   stroke-width: calc(var(--w, 1.6px) * 1.6);
+}
+/* Invisible click target along each arc: 16 screen px wide at any zoom */
+.outer-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+  cursor: pointer;
 }
 
 /* ---- Builder: 5. Style ---- */

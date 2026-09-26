@@ -2,8 +2,8 @@
 import { data, leafConnections, seed } from "./data.js";
 import { createChart } from "./chart.js";
 import { createSearch } from "./search.js";
-import { createBuilder } from "./builder.js";
-import { loadSavedTrees, persistTrees, newTreeId } from "./trees.js";
+import { createBuilder, canEdit } from "./builder.js";
+import { loadSavedTrees, storeTree, unstoreTree, newTreeId } from "./trees.js";
 import { applyStyle } from "./styles.js";
 import { createSizeInput } from "./sizeInput.js";
 
@@ -31,9 +31,9 @@ let current = exampleTree;
 // Pixel defaults for the Appearance size fields. Node size is the dot diameter of an
 // expanded node (12 px = the chart's 1× node scale).
 const SIZES = {
-  label: { value: 14, presets: [10, 12, 14, 18, 24], min: 6, max: 72 },
-  node: { value: 12, presets: [8, 12, 16, 24, 36], min: 4, max: 96 },
-  arrow: { value: 10, presets: [6, 8, 10, 14, 20], min: 2, max: 80 },
+  label: { value: 24, presets: [12, 16, 20, 24, 32], min: 6, max: 72 },
+  node: { value: 24, presets: [12, 16, 20, 24, 32], min: 4, max: 96 },
+  arrow: { value: 24, presets: [12, 16, 20, 24, 32], min: 2, max: 80 },
 };
 const NODE_BASE_DIAMETER = 12;
 
@@ -122,14 +122,22 @@ const search = createSearch({
   chart,
 });
 
+// Tree states: `saved` = stored in this browser; `dirty` = saved, but edited since.
 const builder = createBuilder({
   dialog: $("builder"),
-  onCreate(tree) {
-    const created = { ...tree, id: newTreeId(), saved: false };
-    trees.push(created);
-    selectTree(created);
+  onSubmit(tree, edited) {
+    if (edited) {
+      Object.assign(edited, tree, { dirty: edited.saved });
+      selectTree(edited);
+    } else {
+      const created = { ...tree, id: newTreeId(), saved: false, dirty: false };
+      trees.push(created);
+      selectTree(created);
+    }
   },
 });
+
+const hasUnsavedWork = (t) => !t.example && (!t.saved || t.dirty);
 
 function selectTree(tree) {
   current = tree;
@@ -144,26 +152,41 @@ function renderTreeUI(message) {
     ...trees.map((t) =>
       Object.assign(document.createElement("option"), {
         value: t.id,
-        textContent: t.example || t.saved ? t.name : `${t.name} (unsaved)`,
+        textContent: !t.saved && !t.example ? `${t.name} (unsaved)` : t.dirty ? `${t.name} (edited)` : t.name,
       }),
     ),
   );
   treeSelect.value = current.id;
 
   $("treeName").textContent = current.name;
-  $("treeBadge").textContent = current.example ? `seed ${seed}` : current.saved ? "" : "Unsaved";
-  $("treeBadge").hidden = !current.example && current.saved;
+  $("treeBadge").textContent = current.example
+    ? `seed ${seed}`
+    : !current.saved
+      ? "Unsaved"
+      : current.dirty
+        ? "Unsaved changes"
+        : "";
+  $("treeBadge").hidden = !$("treeBadge").textContent;
   document.title = `${current.name} · Radial Cluster`;
 
-  $("btnSaveTree").disabled = current.example || current.saved;
+  const editable = canEdit(current);
+  $("btnEditTree").disabled = !editable;
+  $("btnEditTree").title = current.example
+    ? "The random example can't be edited"
+    : editable
+      ? "Edit this tree"
+      : "This tree was saved without its editing data";
+  $("btnSaveTree").disabled = !hasUnsavedWork(current);
   $("btnDeleteTree").disabled = current.example;
   $("treeStatus").textContent =
     message ??
     (current.example
       ? "Random example: a new one is generated on every page load."
-      : current.saved
-        ? "Saved in this browser. Clearing site data removes it."
-        : "Not saved: it disappears when the page reloads.");
+      : !current.saved
+        ? "Not saved: it disappears when the page reloads."
+        : current.dirty
+          ? "Edited: press Save to keep the changes. Reloading brings back the saved version."
+          : "Saved in this browser. Clearing site data removes it.");
 
   renderConnectionLegend();
 }
@@ -187,27 +210,30 @@ treeSelect.addEventListener("change", () => {
 });
 
 $("btnNewTree").addEventListener("click", () => builder.open());
+$("btnEditTree").addEventListener("click", () => {
+  if (canEdit(current)) builder.open({ tree: current });
+});
 
 $("btnSaveTree").addEventListener("click", () => {
-  current.saved = true;
-  if (!persistTrees(trees)) {
-    current.saved = false;
+  if (!storeTree(current)) {
     renderTreeUI("Couldn't save: browser storage is unavailable or full.");
     return;
   }
+  current.saved = true;
+  current.dirty = false;
   renderTreeUI();
 });
 
 $("btnDeleteTree").addEventListener("click", () => {
   if (current.example || !confirm(`Delete "${current.name}"? This can't be undone.`)) return;
   trees.splice(trees.indexOf(current), 1);
-  if (current.saved) persistTrees(trees);
+  if (current.saved) unstoreTree(current.id);
   selectTree(exampleTree);
 });
 
-// Warn before losing trees that were never saved.
+// Warn before losing new trees or edits that weren't saved.
 window.addEventListener("beforeunload", (event) => {
-  if (trees.some((t) => !t.example && !t.saved)) event.preventDefault();
+  if (trees.some(hasUnsavedWork)) event.preventDefault();
 });
 
 // ---- Nodes ----

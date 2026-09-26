@@ -166,7 +166,8 @@ function iconButton(label, title, onClick) {
   return el("button", { type: "button", className: "b-icon", textContent: label, title, ariaLabel: title, onclick: onClick });
 }
 
-export function createBuilder({ dialog, onCreate }) {
+// onSubmit(tree, editedTree): editedTree is the tree being edited, or null for a new one.
+export function createBuilder({ dialog, onSubmit }) {
   const $ = (sel) => dialog.querySelector(sel);
   const form = $("form");
   const nameInput = $("#bName");
@@ -182,6 +183,8 @@ export function createBuilder({ dialog, onCreate }) {
   const preview = $("#bPreview");
 
   let state = emptyState();
+  let editing = null; // tree being edited, if any
+  let initial = ""; // state when the dialog opened, to detect edits
 
   levelCount.max = MAX_LEVELS;
   const levelLabel = (depth) =>
@@ -590,7 +593,7 @@ export function createBuilder({ dialog, onCreate }) {
     const errors = validate();
     errorsBox.replaceChildren(...errors.map((msg) => el("li", { textContent: msg })));
     if (errors.length) return;
-    onCreate(toTree(state));
+    onSubmit(toTree(state), editing);
     dialog.close();
   });
 
@@ -599,8 +602,12 @@ export function createBuilder({ dialog, onCreate }) {
     if (e.key === "Enter" && e.target.matches("input:not([type=submit])")) e.preventDefault();
   });
 
-  const hasWork = () => state.name.trim() || state.nodes.length || state.connections.length;
-  const discard = () => !hasWork() || confirm("Discard this tree?");
+  // Anything to lose? New tree: anything entered. Editing: anything changed.
+  const hasWork = () =>
+    editing
+      ? JSON.stringify(state) !== initial
+      : state.name.trim() || state.nodes.length || state.connections.length;
+  const discard = () => !hasWork() || confirm(editing ? "Discard your changes?" : "Discard this tree?");
 
   dialog.addEventListener("cancel", (e) => {
     if (!discard()) e.preventDefault();
@@ -618,8 +625,17 @@ export function createBuilder({ dialog, onCreate }) {
   levelCount.addEventListener("change", () => setLevelCount(+levelCount.value));
 
   return {
-    open() {
-      state = emptyState();
+    // New tree, or pass `tree` to edit it (starts from the builder state it was made with).
+    open({ tree } = {}) {
+      editing = tree ?? null;
+      state = tree ? { ...emptyState(), ...structuredClone(tree.draft) } : emptyState();
+      if (tree) state.style = { ...DEFAULT_STYLE, ...(tree.style ?? state.style) };
+      initial = JSON.stringify(state);
+
+      $("#builderTitle").textContent = tree ? `Edit “${tree.name}”` : "New tree";
+      $("#builderSubmit").textContent = tree ? "Save changes" : "Create tree";
+      $("#builderExample").hidden = !!tree;
+
       renderAll();
       dialog.showModal();
       connectionsBox.querySelectorAll("textarea").forEach(autosize); // now measurable
@@ -627,3 +643,6 @@ export function createBuilder({ dialog, onCreate }) {
     },
   };
 }
+
+// Only trees made with the builder keep the state needed to edit them.
+export const canEdit = (tree) => !!tree?.draft;
