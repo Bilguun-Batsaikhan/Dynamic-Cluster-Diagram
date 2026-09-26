@@ -134,8 +134,7 @@ export function createChart(
   let resolved; // leaf connections resolved to leaf nodes
   let adjacency = new Map(); // node id -> Set of connected visible nodes
   let connectionCount = new Map(); // node id -> number of leaf connections
-  let pinned = null;
-  let hovered = null;
+  let pinned = null; // highlighted node
   let fitTimer = 0;
 
   build();
@@ -161,7 +160,7 @@ export function createChart(
     expand(root);
     root.x0 = 0;
     root.y0 = 0;
-    pinned = hovered = null;
+    pinned = null;
   }
 
   // ---- Render ----
@@ -249,8 +248,10 @@ export function createChart(
             .attr("class", "outer-link")
             .attr("stroke-opacity", 0)
             .attr("d", outerArcPath)
-            .on("mouseenter", (event, l) => setHovered(l.source))
-            .on("mouseleave", () => setHovered(null))
+            .on("click", (event, l) => {
+              event.stopPropagation();
+              pin(l.source);
+            })
             .call((p) => p.append("title")),
         (update) => update,
         (exit) => exit.transition(t).attr("stroke-opacity", 0).remove(),
@@ -283,17 +284,22 @@ export function createChart(
             .property("__polar", from)
             .attr("transform", translate(from))
             .attr("opacity", 0)
+            // Click highlights; double-click expands/collapses (its two clicks pin first).
             .on("click", (event, d) => {
+              event.stopPropagation();
+              pin(d);
+            })
+            .on("dblclick", (event, d) => {
               event.stopPropagation();
               toggle(d);
             })
+            // Keyboard: Space highlights, Enter expands/collapses.
             .on("keydown", (event, d) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
+              if (event.key === " ") pin(d);
+              else if (event.key === "Enter") toggle(d);
+              else return;
               event.preventDefault();
-              toggle(d);
-            })
-            .on("mouseenter focus", (event, d) => setHovered(d))
-            .on("mouseleave blur", () => setHovered(null));
+            });
 
           node.append("circle").attr("class", "node-dot");
           node.append("circle").attr("class", "node-hit").attr("r", 20); // big hit area
@@ -348,18 +354,17 @@ export function createChart(
   }
 
   // ---- Highlight ----
-  // Hover wins over the pinned node; hidden nodes are represented by their visible ancestor.
+  // A hidden pinned node is represented by its visible ancestor.
   function refreshHighlight() {
-    const pinnedVisible = pinned && visibleAncestor(pinned);
-    gNodes.selectAll("g.node").classed("pinned", (d) => d === pinnedVisible);
+    const target = pinned && visibleAncestor(pinned);
+    gNodes.selectAll("g.node").classed("pinned", (d) => d === target);
 
-    const target = hovered ?? pinned;
-    if (target) applyHighlight(layers, visibleAncestor(target), adjacency);
+    if (target) applyHighlight(layers, target, adjacency);
     else clearHighlight(layers);
   }
 
-  function setHovered(d) {
-    hovered = d;
+  function pin(d) {
+    pinned = d;
     refreshHighlight();
   }
 

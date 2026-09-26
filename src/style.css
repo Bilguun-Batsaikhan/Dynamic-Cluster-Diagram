@@ -276,6 +276,7 @@ button.chip.is-active {
   stroke-width: var(--w, 1.6px);
   stroke-linecap: round;
   opacity: 0.85;
+  cursor: pointer;
 }
 .outer-link.dim {
   opacity: 0.08;

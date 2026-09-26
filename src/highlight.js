@@ -1,4 +1,4 @@
-// Hover / pin highlighting. All styling lives in style.css; this module only toggles
+// Click-to-pin highlighting. All styling lives in style.css; this module only toggles
 // classes (plus the dot radius, which CSS can't set portably on SVG circles).
 
 export const dotRadius = (d, active = false) => (active ? 9 : d._children ? 8 : 6);

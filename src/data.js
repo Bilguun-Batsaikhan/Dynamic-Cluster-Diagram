@@ -1,207 +1,100 @@
-export const data = {
-  name: "NSAT",
-  children: [
-    {
-      name: "SZ-Internet",
-      children: [
-        {
-          name: "Prod",
-          children: [
-            {
-              name: "Tier-Web",
-              children: [
-                {
-                  name: "App-Portal",
-                  children: [
-                    { name: "host-portal-01" },
-                    { name: "host-portal-02" },
-                    { name: "host-portal-03" },
-                    { name: "host-portal-04" },
-                    { name: "host-portal-05" },
-                  ],
-                },
-                {
-                  name: "App-Auth",
-                  children: [
-                    { name: "host-auth-01" },
-                    { name: "host-auth-02" },
-                    { name: "host-auth-03" },
-                  ],
-                },
-                {
-                  name: "App-Static",
-                  children: [{ name: "host-cdn-01" }, { name: "host-cdn-02" }],
-                },
-              ],
-            },
-            {
-              name: "Tier-API",
-              children: [
-                {
-                  name: "App-Gateway",
-                  children: [
-                    { name: "host-gw-01" },
-                    { name: "host-gw-02" },
-                    { name: "host-gw-03" },
-                  ],
-                },
-                {
-                  name: "App-Profile",
-                  children: [
-                    { name: "host-profile-01" },
-                    { name: "host-profile-02" },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          name: "UAT",
-          children: [
-            {
-              name: "Tier-Web",
-              children: [
-                {
-                  name: "App-Portal",
-                  children: [
-                    { name: "host-uat-portal-01" },
-                    { name: "host-uat-portal-02" },
-                    { name: "host-uat-portal-03" },
-                  ],
-                },
-              ],
-            },
-            {
-              name: "Tier-API",
-              children: [
-                {
-                  name: "App-Gateway",
-                  children: [
-                    { name: "host-uat-gw-01" },
-                    { name: "host-uat-gw-02" },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
+// Randomly generated mock hierarchy and leaf-to-leaf connections.
+// Every page load gets a new seed; add ?seed=<n> to the URL to reproduce a layout
+// (the seed in use is logged to the console).
 
-    {
-      name: "SZ-Core",
-      children: [
-        {
-          name: "Prod",
-          children: [
-            {
-              name: "Tier-App",
-              children: [
-                {
-                  name: "App-Payments",
-                  children: [
-                    { name: "host-pay-01" },
-                    { name: "host-pay-02" },
-                    { name: "host-pay-03" },
-                    { name: "host-pay-04" },
-                  ],
-                },
-                {
-                  name: "App-Ledger",
-                  children: [
-                    { name: "host-ledger-01" },
-                    { name: "host-ledger-02" },
-                    { name: "host-ledger-03" },
-                  ],
-                },
-                {
-                  name: "App-Risk",
-                  children: [
-                    { name: "host-risk-01" },
-                    { name: "host-risk-02" },
-                  ],
-                },
-              ],
-            },
-            {
-              name: "Tier-DB",
-              children: [
-                {
-                  name: "App-DBCluster",
-                  children: [
-                    { name: "host-db-01" },
-                    { name: "host-db-02" },
-                    { name: "host-db-03" },
-                  ],
-                },
-                {
-                  name: "App-Cache",
-                  children: [
-                    { name: "host-redis-01" },
-                    { name: "host-redis-02" },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          name: "DR",
-          children: [
-            {
-              name: "Tier-App",
-              children: [
-                {
-                  name: "App-Payments",
-                  children: [
-                    { name: "host-dr-pay-01" },
-                    { name: "host-dr-pay-02" },
-                  ],
-                },
-              ],
-            },
-            {
-              name: "Tier-DB",
-              children: [
-                {
-                  name: "App-DBCluster",
-                  children: [
-                    { name: "host-dr-db-01" },
-                    { name: "host-dr-db-02" },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
+export const LIMITS = {
+  levels: [4, 10], // tree levels, including the root
+  nodes: [40, 160], // total node budget
+  rootChildren: [2, 5],
+  growth: [1.2, 2.4], // a level has this many times the nodes of the level above (within budget)
+  linksPerLeaf: [0.3, 0.8], // number of connections relative to the number of leaves
+  maxLinks: 60,
+  localLinkBias: 0.6, // share of connections whose target is a nearby leaf
 };
 
-// Endpoints are leaf names or full path ids ("NSAT/SZ-Core/Prod/Tier-DB/App-Cache/host-redis-01").
-// Use the path id when a name appears under more than one parent.
-export const leafConnections = [
-  { source: "host-portal-01", target: "host-auth-02" },
-  { source: "host-portal-01", target: "host-gw-03" },
-  { source: "host-portal-03", target: "host-gw-02" },
-  { source: "host-cdn-01", target: "host-profile-02" },
-  { source: "host-uat-gw-01", target: "host-uat-portal-02" },
-  { source: "host-pay-02", target: "host-ledger-03" },
-  { source: "host-risk-01", target: "host-db-02" },
-  { source: "host-redis-02", target: "host-dr-db-01" },
-  // --- New Connections ---
-  { source: "host-portal-05", target: "host-gw-01" },
-  { source: "host-auth-03", target: "host-profile-01" },
-  { source: "host-gw-02", target: "host-pay-01" },
-  { source: "host-pay-04", target: "host-db-03" },
-  { source: "host-ledger-02", target: "host-db-01" },
-  { source: "host-profile-02", target: "host-redis-01" },
-  { source: "host-uat-portal-01", target: "host-uat-gw-02" },
-  { source: "host-dr-pay-01", target: "host-dr-db-02" },
-  { source: "host-portal-02", target: "host-auth-01" },
-  { source: "host-pay-03", target: "host-risk-02" },
-  // --- SZ bulge connection tests ---
-  { source: "host-dr-db-02", target: "host-portal-01" },
-];
+// Small seedable PRNG (mulberry32), returns floats in [0, 1).
+export function createRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function generateMockData(seed, limits = LIMITS) {
+  const rand = createRandom(seed);
+  const int = ([min, max]) => min + Math.floor(rand() * (max - min + 1));
+  const between = ([min, max]) => min + rand() * (max - min);
+
+  const levels = int(limits.levels);
+  const minNodes = limits.nodes[0];
+  const budget = int(limits.nodes);
+
+  // Build level by level. Each new node picks a random parent from the level above,
+  // so some branches end early and fan-out varies, like real inventories.
+  const data = { name: "Root", children: [] };
+  let previous = [data];
+  let used = 1;
+  for (let depth = 1; depth < levels; depth++) {
+    // Stay under the budget, and (below the first level) grow enough to reach the minimum.
+    const cap = Math.max(1, Math.floor((budget - used) / (levels - depth)));
+    const floor = depth === 1 ? 1 : Math.ceil((minNodes - used) / (levels - depth));
+    const wanted =
+      depth === 1
+        ? int(limits.rootChildren)
+        : Math.round(previous.length * between(limits.growth));
+    const count = Math.max(1, floor, Math.min(cap, wanted));
+    const width = String(count).length;
+
+    const current = [];
+    for (let i = 0; i < count; i++) {
+      const node = { name: `L${depth}-N${String(i + 1).padStart(width, "0")}`, children: [] };
+      previous[Math.floor(rand() * previous.length)].children.push(node);
+      current.push(node);
+    }
+    previous = current;
+    used += count;
+  }
+
+  // Leaves in drawing order; drop empty child arrays.
+  const leaves = [];
+  (function walk(node) {
+    if (node.children.length) node.children.forEach(walk);
+    else {
+      delete node.children;
+      leaves.push(node);
+    }
+  })(data);
+
+  const n = leaves.length;
+  const maxPairs = (n * (n - 1)) / 2;
+  const linkCount = Math.min(limits.maxLinks, maxPairs, Math.round(n * between(limits.linksPerLeaf)));
+  const span = Math.max(2, Math.round(n * 0.1));
+
+  const leafConnections = [];
+  const seen = new Set();
+  for (let attempts = 0; leafConnections.length < linkCount && attempts < linkCount * 50; attempts++) {
+    const i = Math.floor(rand() * n);
+    const j =
+      rand() < limits.localLinkBias
+        ? Math.min(n - 1, Math.max(0, i + Math.round((rand() * 2 - 1) * span)))
+        : Math.floor(rand() * n);
+    const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+    if (i === j || seen.has(key)) continue;
+    seen.add(key);
+    leafConnections.push({ source: leaves[i].name, target: leaves[j].name });
+  }
+
+  return { data, leafConnections, levels };
+}
+
+const params = new URLSearchParams(globalThis.location?.search ?? "");
+export const seed = Number.parseInt(params.get("seed"), 10) || Math.floor(Math.random() * 1e9);
+export const { data, leafConnections } = generateMockData(seed);
+
+if (globalThis.location) {
+  console.info(`Mock data seed ${seed}: add ?seed=${seed} to the URL to reproduce this layout.`);
+}
